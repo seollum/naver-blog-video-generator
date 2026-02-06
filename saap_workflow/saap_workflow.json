@@ -1,0 +1,888 @@
+{
+    "name": "Senior Audiobook Automation Pipeline (SAAP)",
+    "nodes": [
+        {
+            "id": "webhook-trigger",
+            "name": "Webhook Trigger",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2.1,
+            "position": [
+                0,
+                0
+            ],
+            "webhookId": "saap-webhook",
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "senior-audiobook",
+                "responseMode": "responseNode",
+                "options": {}
+            }
+        },
+        {
+            "id": "ai-director",
+            "name": "AI Director",
+            "type": "@n8n/n8n-nodes-langchain.openAi",
+            "typeVersion": 2.1,
+            "position": [
+                220,
+                0
+            ],
+            "parameters": {
+                "resource": "text",
+                "operation": "message",
+                "modelId": {
+                    "__rl": true,
+                    "mode": "id",
+                    "value": "gpt-4o"
+                },
+                "messages": {
+                    "values": [
+                        {
+                            "content": "=당신은 시니어 오디오북 제작을 위한 콘텐츠 디렉터입니다.\n\n**[핵심 임무]**\n입력된 스크립트를 의미 단위로 분석하여 N개의 장면(Scene)으로 분할합니다.\n각 장면에 대해 시니어 친화적인 이미지 프롬프트를 자동 생성합니다.\n\n**[이미지 프롬프트 요구사항]**\n- 화풍: 따뜻한 수채화 스타일 (Warm watercolor painting style)\n- 대비: 높은 명암 대비로 시각적 명확성 확보\n- 색상: 부드럽고 안정감 있는 파스텔톤 위주\n- 구도: 단순하고 직관적인 구도, 복잡한 배경 지양\n- 키워드: \"Clear, soothing, high contrast for visibility, senior-friendly, nostalgic\"\n\n**[출력 형식]**\n반드시 아래 JSON 형식으로만 응답하세요:\n{\n  \"total_scenes\": N,\n  \"scenes\": [\n    {\n      \"scene_id\": 1,\n      \"text_chunk\": \"해당 장면의 오디오 대본 텍스트\",\n      \"image_prompt\": \"Warm watercolor style illustration of [장면 묘사], soft pastel colors, high contrast, nostalgic atmosphere, senior-friendly clear composition\",\n      \"estimated_duration\": 15\n    }\n  ]\n}\n\n**[제약사항]**\n- 각 장면의 text_chunk는 자연스러운 문장으로 끝나야 합니다\n- 장면당 예상 길이는 10-30초 사이로 조절\n- JSON 외의 다른 텍스트를 포함하지 마세요\n\n**[스크립트]**\n{{ $json.body.script }}",
+                            "role": "user"
+                        }
+                    ]
+                },
+                "options": {
+                    "temperature": 0.3,
+                    "responseFormat": "json_object"
+                }
+            },
+            "credentials": {
+                "openAiApi": {
+                    "id": "openai-creds",
+                    "name": "OpenAI Account"
+                }
+            }
+        },
+        {
+            "id": "parse-scenes",
+            "name": "Parse Scenes",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                440,
+                0
+            ],
+            "parameters": {
+                "mode": "runOnceForAllItems",
+                "language": "javaScript",
+                "jsCode": "// Parse AI Director output and prepare scene data\nconst input = $input.first().json;\nconst webhookData = $('Webhook Trigger').first().json.body;\n\nlet parsedContent;\ntry {\n  // Handle both string and object responses\n  if (typeof input.content === 'string') {\n    parsedContent = JSON.parse(input.content);\n  } else {\n    parsedContent = input.content || input;\n  }\n} catch (e) {\n  throw new Error('AI Director 응답 파싱 실패: ' + e.message);\n}\n\nconst scenes = parsedContent.scenes || [];\n\n// Return each scene as separate item for loop processing\nreturn scenes.map((scene, index) => ({\n  json: {\n    scene_id: scene.scene_id,\n    text_chunk: scene.text_chunk,\n    image_prompt: scene.image_prompt,\n    estimated_duration: scene.estimated_duration || 15,\n    total_scenes: parsedContent.total_scenes,\n    title: webhookData.title,\n    voice: webhookData.voice || 'hyeon',\n    style: webhookData.style || 'watercolor'\n  }\n}));"
+            }
+        },
+        {
+            "id": "scene-loop",
+            "name": "Scene Loop",
+            "type": "n8n-nodes-base.splitInBatches",
+            "typeVersion": 3,
+            "position": [
+                660,
+                0
+            ],
+            "parameters": {
+                "batchSize": 1,
+                "options": {}
+            }
+        },
+        {
+            "id": "tts-request",
+            "name": "TTS Request",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.4,
+            "position": [
+                880,
+                -100
+            ],
+            "parameters": {
+                "method": "POST",
+                "url": "https://queue.fal.run/fal-ai/elevenlabs/tts/eleven-v3",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\n  \"text\": \"{{ $json.text_chunk }}\",\n  \"voice\": \"{{ $json.voice }}\",\n  \"language_code\": \"ko\",\n  \"speed\": 0.9\n}",
+                "options": {
+                    "response": {
+                        "response": {
+                            "responseFormat": "json"
+                        }
+                    }
+                }
+            },
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "fal-api-key",
+                    "name": "fal.ai API"
+                }
+            }
+        },
+        {
+            "id": "image-request",
+            "name": "Image Request",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.4,
+            "position": [
+                880,
+                100
+            ],
+            "parameters": {
+                "method": "POST",
+                "url": "https://queue.fal.run/fal-ai/flux-pro/v1.1-ultra",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\n  \"prompt\": \"{{ $json.image_prompt }}\",\n  \"aspect_ratio\": \"16:9\",\n  \"output_format\": \"png\",\n  \"safety_tolerance\": 6\n}",
+                "options": {
+                    "response": {
+                        "response": {
+                            "responseFormat": "json"
+                        }
+                    }
+                }
+            },
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "fal-api-key",
+                    "name": "fal.ai API"
+                }
+            }
+        },
+        {
+            "id": "wait-tts",
+            "name": "Wait TTS",
+            "type": "n8n-nodes-base.wait",
+            "typeVersion": 1.1,
+            "position": [
+                1100,
+                -100
+            ],
+            "parameters": {
+                "amount": 5,
+                "unit": "seconds"
+            }
+        },
+        {
+            "id": "wait-image",
+            "name": "Wait Image",
+            "type": "n8n-nodes-base.wait",
+            "typeVersion": 1.1,
+            "position": [
+                1100,
+                100
+            ],
+            "parameters": {
+                "amount": 10,
+                "unit": "seconds"
+            }
+        },
+        {
+            "id": "check-tts",
+            "name": "Check TTS Status",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.4,
+            "position": [
+                1320,
+                -100
+            ],
+            "parameters": {
+                "method": "GET",
+                "url": "=https://queue.fal.run/fal-ai/elevenlabs/tts/eleven-v3/requests/{{ $('TTS Request').item.json.request_id }}",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "options": {
+                    "response": {
+                        "response": {
+                            "responseFormat": "json"
+                        }
+                    }
+                }
+            },
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "fal-api-key",
+                    "name": "fal.ai API"
+                }
+            }
+        },
+        {
+            "id": "check-image",
+            "name": "Check Image Status",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.4,
+            "position": [
+                1320,
+                100
+            ],
+            "parameters": {
+                "method": "GET",
+                "url": "=https://queue.fal.run/fal-ai/flux-pro/v1.1-ultra/requests/{{ $('Image Request').item.json.request_id }}",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "options": {
+                    "response": {
+                        "response": {
+                            "responseFormat": "json"
+                        }
+                    }
+                }
+            },
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "fal-api-key",
+                    "name": "fal.ai API"
+                }
+            }
+        },
+        {
+            "id": "tts-status-switch",
+            "name": "TTS Status Check",
+            "type": "n8n-nodes-base.switch",
+            "typeVersion": 3.2,
+            "position": [
+                1540,
+                -100
+            ],
+            "parameters": {
+                "rules": {
+                    "values": [
+                        {
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": true,
+                                    "leftValue": "",
+                                    "typeValidation": "strict"
+                                },
+                                "conditions": [
+                                    {
+                                        "leftValue": "={{ $json.status }}",
+                                        "rightValue": "COMPLETED",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        }
+                                    }
+                                ],
+                                "combinator": "and"
+                            },
+                            "output": 0
+                        },
+                        {
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": true,
+                                    "leftValue": "",
+                                    "typeValidation": "strict"
+                                },
+                                "conditions": [
+                                    {
+                                        "leftValue": "={{ $json.status }}",
+                                        "rightValue": "IN_PROGRESS",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        }
+                                    }
+                                ],
+                                "combinator": "and"
+                            },
+                            "output": 1
+                        }
+                    ]
+                },
+                "options": {
+                    "fallbackOutput": "extra"
+                }
+            }
+        },
+        {
+            "id": "image-status-switch",
+            "name": "Image Status Check",
+            "type": "n8n-nodes-base.switch",
+            "typeVersion": 3.2,
+            "position": [
+                1540,
+                100
+            ],
+            "parameters": {
+                "rules": {
+                    "values": [
+                        {
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": true,
+                                    "leftValue": "",
+                                    "typeValidation": "strict"
+                                },
+                                "conditions": [
+                                    {
+                                        "leftValue": "={{ $json.status }}",
+                                        "rightValue": "COMPLETED",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        }
+                                    }
+                                ],
+                                "combinator": "and"
+                            },
+                            "output": 0
+                        },
+                        {
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": true,
+                                    "leftValue": "",
+                                    "typeValidation": "strict"
+                                },
+                                "conditions": [
+                                    {
+                                        "leftValue": "={{ $json.status }}",
+                                        "rightValue": "IN_PROGRESS",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        }
+                                    }
+                                ],
+                                "combinator": "and"
+                            },
+                            "output": 1
+                        }
+                    ]
+                },
+                "options": {
+                    "fallbackOutput": "extra"
+                }
+            }
+        },
+        {
+            "id": "retry-wait-tts",
+            "name": "Retry Wait TTS",
+            "type": "n8n-nodes-base.wait",
+            "typeVersion": 1.1,
+            "position": [
+                1760,
+                -40
+            ],
+            "parameters": {
+                "amount": 3,
+                "unit": "seconds"
+            }
+        },
+        {
+            "id": "retry-wait-image",
+            "name": "Retry Wait Image",
+            "type": "n8n-nodes-base.wait",
+            "typeVersion": 1.1,
+            "position": [
+                1760,
+                160
+            ],
+            "parameters": {
+                "amount": 5,
+                "unit": "seconds"
+            }
+        },
+        {
+            "id": "merge-assets",
+            "name": "Merge Assets",
+            "type": "n8n-nodes-base.merge",
+            "typeVersion": 3,
+            "position": [
+                1980,
+                0
+            ],
+            "parameters": {
+                "mode": "combine",
+                "mergeByFields": {
+                    "values": []
+                },
+                "options": {}
+            }
+        },
+        {
+            "id": "prepare-scene-data",
+            "name": "Prepare Scene Data",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                2200,
+                0
+            ],
+            "parameters": {
+                "mode": "runOnceForAllItems",
+                "language": "javaScript",
+                "jsCode": "// Combine TTS and Image results for this scene\nconst items = $input.all();\nconst sceneData = $('Scene Loop').first().json;\n\n// Find TTS and Image results\nlet audioUrl = '';\nlet imageUrl = '';\nlet audioDuration = sceneData.estimated_duration;\n\nfor (const item of items) {\n  if (item.json.audio_url) {\n    audioUrl = item.json.audio_url;\n    audioDuration = item.json.duration || audioDuration;\n  }\n  if (item.json.images && item.json.images[0]) {\n    imageUrl = item.json.images[0].url;\n  }\n}\n\nreturn [{\n  json: {\n    scene_id: sceneData.scene_id,\n    text_chunk: sceneData.text_chunk,\n    audio_url: audioUrl,\n    image_url: imageUrl,\n    duration: audioDuration,\n    total_scenes: sceneData.total_scenes,\n    title: sceneData.title\n  }\n}];"
+            }
+        },
+        {
+            "id": "loop-done-check",
+            "name": "Loop Done Check",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2.2,
+            "position": [
+                2420,
+                0
+            ],
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "strict"
+                    },
+                    "conditions": [
+                        {
+                            "leftValue": "={{ $('Scene Loop').first().context.noItemsLeft }}",
+                            "rightValue": true,
+                            "operator": {
+                                "type": "boolean",
+                                "operation": "equals"
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                },
+                "options": {}
+            }
+        },
+        {
+            "id": "aggregate-scenes",
+            "name": "Aggregate Scenes",
+            "type": "n8n-nodes-base.aggregate",
+            "typeVersion": 1,
+            "position": [
+                2640,
+                -100
+            ],
+            "parameters": {
+                "aggregate": "aggregateAllItemData",
+                "options": {}
+            }
+        },
+        {
+            "id": "render-video-request",
+            "name": "Render Video Request",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.4,
+            "position": [
+                2860,
+                -100
+            ],
+            "parameters": {
+                "method": "POST",
+                "url": "={{ $env.MAKE_WEBHOOK_URL }}",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\n  \"title\": \"{{ $('Webhook Trigger').first().json.body.title }}\",\n  \"scenes\": {{ JSON.stringify($json.data) }}\n}",
+                "options": {
+                    "response": {
+                        "response": {
+                            "responseFormat": "json"
+                        }
+                    },
+                    "timeout": 300000
+                }
+            }
+        },
+        {
+            "id": "wait-render",
+            "name": "Wait Render",
+            "type": "n8n-nodes-base.wait",
+            "typeVersion": 1.1,
+            "position": [
+                3080,
+                -100
+            ],
+            "parameters": {
+                "amount": 60,
+                "unit": "seconds"
+            }
+        },
+        {
+            "id": "download-video",
+            "name": "Download Video",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.4,
+            "position": [
+                3300,
+                -100
+            ],
+            "parameters": {
+                "method": "GET",
+                "url": "={{ $('Render Video Request').first().json.video_url }}",
+                "options": {
+                    "response": {
+                        "response": {
+                            "responseFormat": "file"
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "id": "google-drive-upload",
+            "name": "Upload to Drive",
+            "type": "n8n-nodes-base.googleDrive",
+            "typeVersion": 3,
+            "position": [
+                3520,
+                -100
+            ],
+            "parameters": {
+                "resource": "file",
+                "operation": "upload",
+                "name": "={{ $('Webhook Trigger').first().json.body.title }}_audiobook.mp4",
+                "folderId": {
+                    "__rl": true,
+                    "mode": "id",
+                    "value": "={{ $env.GOOGLE_DRIVE_FOLDER_ID }}"
+                },
+                "options": {}
+            },
+            "credentials": {
+                "googleDriveOAuth2Api": {
+                    "id": "google-drive-creds",
+                    "name": "Google Drive Account"
+                }
+            }
+        },
+        {
+            "id": "get-share-link",
+            "name": "Get Share Link",
+            "type": "n8n-nodes-base.googleDrive",
+            "typeVersion": 3,
+            "position": [
+                3740,
+                -100
+            ],
+            "parameters": {
+                "resource": "file",
+                "operation": "share",
+                "fileId": {
+                    "__rl": true,
+                    "mode": "id",
+                    "value": "={{ $json.id }}"
+                },
+                "permissionsUi": {
+                    "permissionsValues": {
+                        "role": "reader",
+                        "type": "anyone"
+                    }
+                },
+                "options": {}
+            },
+            "credentials": {
+                "googleDriveOAuth2Api": {
+                    "id": "google-drive-creds",
+                    "name": "Google Drive Account"
+                }
+            }
+        },
+        {
+            "id": "respond-webhook",
+            "name": "Return Download URL",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1.1,
+            "position": [
+                3960,
+                -100
+            ],
+            "parameters": {
+                "respondWith": "json",
+                "responseBody": "={\n  \"success\": true,\n  \"title\": \"{{ $('Webhook Trigger').first().json.body.title }}\",\n  \"download_url\": \"https://drive.google.com/uc?export=download&id={{ $('Upload to Drive').first().json.id }}\",\n  \"view_url\": \"https://drive.google.com/file/d/{{ $('Upload to Drive').first().json.id }}/view\",\n  \"file_id\": \"{{ $('Upload to Drive').first().json.id }}\",\n  \"total_scenes\": {{ $('Parse Scenes').first().json.total_scenes }},\n  \"created_at\": \"{{ $now.toISO() }}\"\n}"
+            }
+        }
+    ],
+    "connections": {
+        "Webhook Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "AI Director",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "AI Director": {
+            "main": [
+                [
+                    {
+                        "node": "Parse Scenes",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Parse Scenes": {
+            "main": [
+                [
+                    {
+                        "node": "Scene Loop",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Scene Loop": {
+            "main": [
+                [
+                    {
+                        "node": "TTS Request",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Image Request",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "TTS Request": {
+            "main": [
+                [
+                    {
+                        "node": "Wait TTS",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Image Request": {
+            "main": [
+                [
+                    {
+                        "node": "Wait Image",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Wait TTS": {
+            "main": [
+                [
+                    {
+                        "node": "Check TTS Status",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Wait Image": {
+            "main": [
+                [
+                    {
+                        "node": "Check Image Status",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check TTS Status": {
+            "main": [
+                [
+                    {
+                        "node": "TTS Status Check",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check Image Status": {
+            "main": [
+                [
+                    {
+                        "node": "Image Status Check",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "TTS Status Check": {
+            "main": [
+                [
+                    {
+                        "node": "Merge Assets",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Retry Wait TTS",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Image Status Check": {
+            "main": [
+                [
+                    {
+                        "node": "Merge Assets",
+                        "type": "main",
+                        "index": 1
+                    }
+                ],
+                [
+                    {
+                        "node": "Retry Wait Image",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Retry Wait TTS": {
+            "main": [
+                [
+                    {
+                        "node": "Check TTS Status",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Retry Wait Image": {
+            "main": [
+                [
+                    {
+                        "node": "Check Image Status",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Merge Assets": {
+            "main": [
+                [
+                    {
+                        "node": "Prepare Scene Data",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Prepare Scene Data": {
+            "main": [
+                [
+                    {
+                        "node": "Loop Done Check",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Loop Done Check": {
+            "main": [
+                [
+                    {
+                        "node": "Aggregate Scenes",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Scene Loop",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Aggregate Scenes": {
+            "main": [
+                [
+                    {
+                        "node": "Render Video Request",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Render Video Request": {
+            "main": [
+                [
+                    {
+                        "node": "Wait Render",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Wait Render": {
+            "main": [
+                [
+                    {
+                        "node": "Download Video",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Download Video": {
+            "main": [
+                [
+                    {
+                        "node": "Upload to Drive",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Upload to Drive": {
+            "main": [
+                [
+                    {
+                        "node": "Get Share Link",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Get Share Link": {
+            "main": [
+                [
+                    {
+                        "node": "Return Download URL",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "saveManualExecutions": true,
+        "saveDataSuccessExecution": "all",
+        "saveDataErrorExecution": "all"
+    },
+    "staticData": null,
+    "tags": [],
+    "triggerCount": 1
+}

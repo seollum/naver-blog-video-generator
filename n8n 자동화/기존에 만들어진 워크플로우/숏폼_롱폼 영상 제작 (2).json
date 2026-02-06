@@ -1,0 +1,1744 @@
+{
+  "name": "숏폼/롱폼 영상 제작",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 10
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -160,
+        -96
+      ],
+      "id": "abd2f916-cf4d-4139-b6aa-204335706071",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "messages": {
+          "message": [
+            {
+              "content": "=당신은 대한민국 관련 모든 뉴스에 대해 완벽히 이해하는 유능한 리서처입니다.\n\n**[핵심 임무]**\nUser prompt로 전달되는 **타깃 시청자 연령대**와 **키워드** 값을 고려하여, 해당 연령의 대한민국 국민이 해당 카테고리에 대해 **가장 높은 관심과 흥미(트렌드, 미해결된 궁금증, 논란거리 등)**를 가질 만한 최근 뉴스를 1개 선정하고 근거 및 세부 데이터를 수집해 리포트로 제공합니다.\n\n**[금지사항]**\n리포트의 핵심 주제가 분산되지 않도록 뉴스는 1개만 선정해서 관련 자료를 수집합니다.\n\n**[정보 수집 제약]**\n1.  **반드시 온라인 서칭을 통해** 정보를 수집합니다.\n2.  정보는 오늘({{ $now }}) 기준 **최근 7일 이내** 발행된 **대한민국 내 기사, 공신력 있는 연구 자료, 데이터 통계** 등 신뢰할 수 있는 출처의 데이터만을 사용합니다.\n\n**[결과물 형식]**\n최종 결과물은 다음의 필수 항목을 포함하는 **상세 영상 콘텐츠 기획안**이어야 합니다.\n1.  **채택한 뉴스의 키워드 및 주요 포인트 (Key Point)**\n2.  **구체적인 수치/데이터**\n3.  **핵심 메시지/바이럴 포인트 (Key Message/Viral Point/Data)**",
+              "role": "system"
+            },
+            {
+              "content": "={\n  \"target\":\"{{ $json.Target }}\",\n  \"keyword\":\"{{ $json.Keyword }}\"\n}"
+            }
+          ]
+        },
+        "options": {},
+        "requestOptions": {}
+      },
+      "type": "n8n-nodes-base.perplexity",
+      "typeVersion": 1,
+      "position": [
+        288,
+        -96
+      ],
+      "id": "a01f05fc-386d-443c-b3d2-216854a3be40",
+      "name": "퍼플렉시티 데이터 조사",
+      "credentials": {
+        "perplexityApi": {
+          "id": "dsiH927Y8M6yhEQh",
+          "name": "Perplexity account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "=당신은 대한민국 시청자들의 눈높이에 맞춰 복잡한 리서치 내용을 쉽고 매력적인 스토리텔링으로 풀어내는 **최고의 영상 콘텐츠 전문 기획자**입니다.\n\n**[핵심 임무]**\nUser prompt를 통해 전달된 **관련 리서치 내용(\"content\"), 영상 유형(\"form\")**을 분석하여, 시청자의 공감과 흥미를 극대화하는 영상 콘텐츠를 기획하고 나레이션을 위한 스크립트(대본)를 작성해야 합니다.\n\n**[스크립트 작성 원칙]**\n1.  **리서치 내용(데이터)**을 **영상 유형**에 맞게 논리적이고 설득력 있게 전달합니다.\n2.  스크립트는 실제 나레이션이 가능하도록 **간결하고 청취 친화적인 구어체 문장 구조**로만 구성해야 합니다. (딱딱한 문어체 사용 금지)\n3.  **마케팅 및 SEO(검색 엔진 최적화)**를 고려하여 제목(`title`)과 설명(`description`), 태그(`tags`)를 구성해야 합니다.\n4.  User Prompt의 \"form\"(영상 유형) 값이 \"쇼츠\"일 경우 **300자 이내**, \"롱폼\"일 경우 **800자 정도** 스크립트로 구성해 주세요.\n\n**[출력 형식 제약 - JSON]**\n출력 결과는 **오직 아래 JSON 구조만을 사용하며**, 추가적인 설명이나 코멘트를 일절 포함하지 않아야 합니다.\n\n```json\n{\n  \"title\" : \"콘텐츠의 핵심 키워드가 잘 나타나는 제목\",\n  \"description\" : \"영상 내용을 요약하고 시청을 유도하는 설명 (150자 내외)\",\n  \"script\" : \"리서치 내용을 바탕으로 구성된 나레이션 대본 전체. **반드시 핵심 데이터와 결론을 포함한 본론 내용을 우선으로 구성**하며, 구어체 문장 구조만 사용함\", 숫자는 한글로 표현,예시) 15세 = 십오세 , 20세 = 이십세 등\n  \"tags\" : \"영상 내용과 관련된 핵심 키워드 5개 이상 (쉼표로 구분)\"\n}"
+            },
+            {
+              "content": "={\n  \"form\" : \"{{ $('데이터 가져오기').item.json.Form }}\",\n  \"content\" : \"{{ $json.choices[0].message.content }}\"\n}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "textFormat": {
+            "textOptions": {
+              "type": "json_object"
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        512,
+        -96
+      ],
+      "id": "2d981e1c-f697-46ad-9442-ad85a03d7872",
+      "name": "스크립트",
+      "credentials": {
+        "openAiApi": {
+          "id": "SdxUM4fZSebxlpJ3",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1SWBYOtCkEfVcHA7RCKVoU2MbpONY3lkkBTihK_ioovs",
+          "mode": "list",
+          "cachedResultName": "쇼츠/롱폼 만들기 테스트",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1SWBYOtCkEfVcHA7RCKVoU2MbpONY3lkkBTihK_ioovs/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Content",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1SWBYOtCkEfVcHA7RCKVoU2MbpONY3lkkBTihK_ioovs/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Status",
+              "lookupValue": "기획"
+            }
+          ]
+        },
+        "options": {
+          "returnFirstMatch": true
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        64,
+        -96
+      ],
+      "id": "32faea09-b723-4cb2-93d3-cf3822c31465",
+      "name": "데이터 가져오기",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "OMBTo8r9g8jjmbUh",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1SWBYOtCkEfVcHA7RCKVoU2MbpONY3lkkBTihK_ioovs",
+          "mode": "list",
+          "cachedResultName": "쇼츠/롱폼 만들기 테스트",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1SWBYOtCkEfVcHA7RCKVoU2MbpONY3lkkBTihK_ioovs/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Content",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1SWBYOtCkEfVcHA7RCKVoU2MbpONY3lkkBTihK_ioovs/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ID": "={{ $('데이터 가져오기').item.json.ID }}",
+            "Status": "제작 중",
+            "title": "={{ $json.output[0].content[0].text.title }}",
+            "description": "={{ $json.output[0].content[0].text.description }}",
+            "script": "={{ $json.output[0].content[0].text.script }}",
+            "tags": "={{ $json.output[0].content[0].text.tags }}"
+          },
+          "matchingColumns": [
+            "ID"
+          ],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Target",
+              "displayName": "Target",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Keyword",
+              "displayName": "Keyword",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Form",
+              "displayName": "Form",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Voice",
+              "displayName": "Voice",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Img_url",
+              "displayName": "Img_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Ratio",
+              "displayName": "Ratio",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Voice_ID",
+              "displayName": "Voice_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "title",
+              "displayName": "title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "description",
+              "displayName": "description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "script",
+              "displayName": "script",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tags",
+              "displayName": "tags",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "video_url",
+              "displayName": "video_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        864,
+        -96
+      ],
+      "id": "5c1b827d-7439-4e9a-9d89-9165fe88beb9",
+      "name": "업데이트 데이타",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "OMBTo8r9g8jjmbUh",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://queue.fal.run/fal-ai/elevenlabs/tts/eleven-v3",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ $json.script }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1088,
+        -96
+      ],
+      "id": "b8533cc4-e78b-4b68-9e95-6ac2ad3150de",
+      "name": "make 오디오",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SJJtNVot5ImhnANi",
+          "name": "fal.ai"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 3,
+        "unit": "minutes"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1312,
+        -96
+      ],
+      "id": "14a48854-ba60-4ed6-af0f-1c270910efff",
+      "name": "Wait",
+      "webhookId": "7de0547b-74b9-4096-bca3-c0ea93bba705"
+    },
+    {
+      "parameters": {
+        "url": "=https://queue.fal.run/fal-ai/elevenlabs/requests/{{ $json.request_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1536,
+        -96
+      ],
+      "id": "85fa7532-3fe2-4a36-aaf4-4c1480f42249",
+      "name": "체크 오디오",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SJJtNVot5ImhnANi",
+          "name": "fal.ai"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.0-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.0-flash"
+        },
+        "text": "srt 파일로 구성해서 해당 음성의 timestamps를 구성해 줘. 출력 예시는 다음과 같아(각 건의 넘버링 필요 없음) : \n\n00:00:00,000 --> 00:00:10,000\n안녕하세요, 여러분. 오늘은 50대를 위한 건강한 식단 관리법에 대해 이야기해 보겠습니다. 중년이 되면 신체 기능이 조금씩 변화하기 때문에 음식 선택에 더 신경 써야 합니다. 먼저 단백질 섭취를 충분히 하는 것이 중요합니다. \n\n00:00:10,001 --> 00:00:18,000\n근육량 감소를 막고 체력을 유지하는 데 필수적이죠. 닭가슴살, 생선, 두부 같은 고단백 식품을 식단에 포함하세요. 다음으로 채소와 과일을 매일 충분히 섭취해 주세요. \n\n00:00:18,001 --> 00:00:24,000\n오늘 알려드린 내용으로 여러분의 식단을 점검해 보시고 활기차고 건강한 50대를 보내시길 바랍니다. 시청해 주셔서 감사합니다.\n```",
+        "audioUrls": "={{ $json.audio.url }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        1760,
+        -96
+      ],
+      "id": "898a5922-f579-429a-90f4-fa55522cb332",
+      "name": "Analyze audio",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "lIrG4KOZ3OSH9UCX",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-5",
+          "mode": "list",
+          "cachedResultName": "GPT-5"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "=당신은 유능한 SRT(SubRip Text) 분석 전문가입니다. User Prompt로 전달 받는 SRT를 분석하여, 총 영상 길이를 고려한 Scence을 나누어 주세요. Scene의 길이는 5초 또는 10초로 구성가능합니다.\n\n## 출력 형식(JSON)\n{\n \"scene_1\": {\n   \"origin_script\": \"\",\n   \"duration\": 5 또는 10\n },\n \"scene_2\": {\n   \"origin_script\": \"\",\n   \"duration\": 5 또는 10\n },\n \"scene_3\": {\n   \"origin_script\": \"\",\n   \"duration\": 5 또는 10\n }\n}\n\n## 필수사항\nScenc별 Duration의 합, 즉 영상의 총 길이는 반드시 SRT를 통해 파악되는 음성 길이보다 최소 2초 이상 길어야 합니다. 예를 들어 음성 길이가 44초일 경우, 영상 총 길이는 50초(5초 또는 10초의 합으로 구성)이어야 하며, 음성 길이가 37초일 경우, 영상 총 길이는 40초가 되어야 함."
+            },
+            {
+              "content": "={{ $json.content.parts[0].text }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "textFormat": {
+            "textOptions": {
+              "type": "json_object"
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        1984,
+        -96
+      ],
+      "id": "92d4cf0f-53be-4221-aca3-3a2c4a934ad0",
+      "name": "srt 생성",
+      "credentials": {
+        "openAiApi": {
+          "id": "SdxUM4fZSebxlpJ3",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-5",
+          "mode": "list",
+          "cachedResultName": "GPT-5"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "=당신은 전문 이미지 생성 프롬프터입니다.\n나는 당신이 구성한 프롬프트를 이용해 여러 장의 이미지를 생성하고, 이를 이어 붙여 하나의 영상을 만들 것입니다.\n\n🔒 반드시 모든 scene 이미지는 다음 “고정 스타일 가이드”를 절대적으로 동일하게 유지해야 합니다.\n\n[고정 스타일 가이드]\n🎨 스타일\n시네마틱 리얼 일러스트(실제 사람과 최대한 유사하게 표현)\n실제 인간 피부 질감·머리카락·눈빛 디테일을 매우 자연스럽게 표현\n현실 기반 디테일 강조: 피부 모공, 자연스러운 머리 결, 자연광 반사 등\n\n📐 구도\n인물 또는 사물은 중앙 또는 1/3 구도 유지\n카메라 렌즈: 35mm 또는 50mm 필름 렌즈 느낌\n→ 인물을 자연스럽고 리얼하게 보이게 함\n\n🖌️ 렌더링\n동일한 브러시·텍스처의 디지털 아트\n단, 인물은 사실적·자연광 기반의 리얼 표현 지향\n\n👤 인물 조건\n반드시 동양인\n인물의 표정, 얼굴 비율, 체형은 실제 사람처럼 자연스러움\n모델처럼 과도한 비율/과장 표현 금지\n부드러운 피부 보정은 허용하되, 만화 느낌 절대 금지\n\n🚫 금지\n이미지 내 텍스트 절대 금지\n만화풍, 애니풍, 캐릭터풍 절대 금지\n디포메이션 표현 금지\n\n🧩 User Prompt 데이터 구조\n{\n \"scene_n\" : \"이미지 생성이 필요한 장면의 나레이션\",\n \"duration\" : \"해당 나레이션의 길이\"\n}\n\n출력 형식(JSON)\n{\n \"scene_1\": {\n   \"origin_script\": \"\",\n   \"duration\": \"원본 duration 값\",\n   \"scene_img\": \"\"\n },\n \"scene_2\": {\n   \"origin_script\": \"\",\n   \"duration\": \"원본 duration 값\",\n   \"scene_img\": \"\"\n },\n \"scene_3\": {\n   \"origin_script\": \"\",\n   \"duration\": \"원본 duration 값\",\n   \"scene_img\": \"\"\n }\n}\n\n🛠️ 당신의 작업:\n영상 설명과 User prompt 내용을 기반으로 아래와 같이 각 scene별 데이터 구성\n- 각 scene 원본 script 그대로 origin_script에 작성하세요.\n- duration 값은 반드시 원본 값 그대로 두세요.\n- scene_img : 위 고정 스타일 가이드를 100% 반영할 수 있는 이미지 생성 프롬프트\n\n\n\n## 특이사항 대처\n만약 특정 씬의 나레이션과 duration 값이 비어있다면, 이는 그 외 씬의 내용으로 추정 또는 상상해서 구성해 주세요(출력에서는 반드시 값이 있도록)"
+            },
+            {
+              "content": "={{ $json.output[0].content[0].text.toJsonString() }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "textFormat": {
+            "textOptions": {
+              "type": "json_object"
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        -32,
+        128
+      ],
+      "id": "908630af-8b0d-44fb-aa1a-962262f8ce41",
+      "name": "이미지 프롬프트",
+      "credentials": {
+        "openAiApi": {
+          "id": "SdxUM4fZSebxlpJ3",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "output[0].content[0].text",
+        "include": "=",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        320,
+        128
+      ],
+      "id": "2ab519f4-3121-4966-8c1c-a3c18129538b",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "unit": "minutes"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        768,
+        128
+      ],
+      "id": "5b9113ec-23a5-43e6-acb4-09eba996736d",
+      "name": "Wait1",
+      "webhookId": "1b10246e-7150-4482-bec0-b870e06882a4"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.kie.ai/api/v1/jobs/createTask",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "nano-banana-pro"
+            },
+            {
+              "name": "input.prompt",
+              "value": "={{ $json['output[0].content[0].text'].scene_img }}"
+            },
+            {
+              "name": "input.aspect_ratio",
+              "value": "={{ $('데이터 가져오기').item.json.Ratio }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        544,
+        128
+      ],
+      "id": "230c8a7a-d41c-4c06-9cd7-d9711e355766",
+      "name": "이미지 생성",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "VJUm7LSBgUn3tD3r",
+          "name": "kie.ai 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://api.kie.ai/api/v1/jobs/recordInfo?taskId={{ $json.data.taskId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        992,
+        128
+      ],
+      "id": "89e3c7c4-c12c-471a-9cd7-3efeb455894e",
+      "name": "체크 이미지",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "VJUm7LSBgUn3tD3r",
+          "name": "kie.ai 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const output = [];\n\nfor (const item of items) {\n  try {\n    // data.resultJson 문자열 파싱\n    const result = JSON.parse(item.json.data.resultJson);\n\n    // 첫 번째 URL 추출\n    const url = result.resultUrls?.[0] ?? null;\n\n    output.push({\n      json: {\n        url\n      }\n    });\n\n  } catch (error) {\n    output.push({\n      json: {\n        url: null,\n        error: \"Parsing failed: \" + error.message\n      }\n    });\n  }\n}\n\nreturn output;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1216,
+        128
+      ],
+      "id": "b090f800-4331-4306-a36a-8ec9bb5646cc",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.kie.ai/api/v1/jobs/createTask",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "kling-2.6/image-to-video"
+            },
+            {
+              "name": "input.prompt",
+              "value": "전달되는 이미지를 활용해 영상을 만들어줘. 단, 기존 이미지 내 존재하는 텍스트 외 자체적인 판단으로 텍스트를 표시하는 것은 금지야."
+            },
+            {
+              "name": "input.image_urls",
+              "value": "={{ [$json.url] }}"
+            },
+            {
+              "name": "input.sound",
+              "value": "={{ false }}"
+            },
+            {
+              "name": "input.duration",
+              "value": "={{ $('Split Out').item.json['output[0].content[0].text'].duration.toString() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1440,
+        128
+      ],
+      "id": "cf30f000-fc5a-44cc-9ad3-d3ff0edb589a",
+      "name": "영상 생성",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "VJUm7LSBgUn3tD3r",
+          "name": "kie.ai 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 10,
+        "unit": "minutes"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1680,
+        304
+      ],
+      "id": "216bc0a7-6235-467d-ae22-0ea606460339",
+      "name": "Wait2",
+      "webhookId": "96c40c01-ed44-4bc7-ba11-c3ba7371f1b5"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.kie.ai/api/v1/jobs/recordInfo?taskId={{ $json.data.taskId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -96,
+        544
+      ],
+      "id": "2a9d3ea2-8780-4401-93fa-39da39b6a52e",
+      "name": "체크 영상",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "VJUm7LSBgUn3tD3r",
+          "name": "kie.ai 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const output = [];\n\nfor (const item of items) {\n  try {\n    // data.resultJson 문자열 파싱\n    const result = JSON.parse(item.json.data.resultJson);\n\n    // 첫 번째 URL 추출\n    const url = result.resultUrls?.[0] ?? null;\n\n    output.push({\n      json: {\n        url\n      }\n    });\n\n  } catch (error) {\n    output.push({\n      json: {\n        url: null,\n        error: \"Parsing failed: \" + error.message\n      }\n    });\n  }\n}\n\nreturn output;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        128,
+        544
+      ],
+      "id": "98888618-785d-40e9-950e-5f4b8bbe429f",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "url"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        352,
+        544
+      ],
+      "id": "bb6f3641-4ec9-4aa9-81f4-f06d0f36109f",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://queue.fal.run/fal-ai/ffmpeg-api/merge-videos",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "video_urls",
+              "value": "={{ $json.url }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        576,
+        544
+      ],
+      "id": "bb8fe145-acd5-4fe6-a2ce-422c9506cfbf",
+      "name": "비디오 합치기",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SJJtNVot5ImhnANi",
+          "name": "fal.ai"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://queue.fal.run/fal-ai/ffmpeg-api/requests/{{ $json.request_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1024,
+        544
+      ],
+      "id": "d4b2a284-fd0d-4576-acd1-c347a2fff715",
+      "name": "체크 영상1",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SJJtNVot5ImhnANi",
+          "name": "fal.ai"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://queue.fal.run/fal-ai/ffmpeg-api/merge-audio-video",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "video_url",
+              "value": "={{ $json.video.url }}"
+            },
+            {
+              "name": "audio_url",
+              "value": "={{ $('체크 오디오').item.json.audio.url }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1248,
+        544
+      ],
+      "id": "c3c821f7-f300-4f29-8f52-368e9801994d",
+      "name": "영상 오디오 합침",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SJJtNVot5ImhnANi",
+          "name": "fal.ai"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "unit": "minutes"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1472,
+        544
+      ],
+      "id": "618402b2-70ca-4603-8e7f-379dddc75290",
+      "name": "Wait4",
+      "webhookId": "8e51283e-9a86-4e90-aedf-8a9b63207128"
+    },
+    {
+      "parameters": {
+        "url": "=https://queue.fal.run/fal-ai/ffmpeg-api/requests/{{ $json.request_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1696,
+        544
+      ],
+      "id": "b36b1c0e-5814-4598-aa25-183ac437ffa5",
+      "name": "체크 영상 오디오",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SJJtNVot5ImhnANi",
+          "name": "fal.ai"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "d79a5204-88f6-424f-8c56-c7d21964ac52",
+              "leftValue": "={{ $('데이터 가져오기').item.json.Img_url }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -256,
+        288
+      ],
+      "id": "c53a12a9-237f-4188-8e5b-ed82cc3832f5",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "output[0].content[0].text",
+        "include": "=",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        320,
+        304
+      ],
+      "id": "dcd36801-5bcc-4a2f-9207-c96b430f17dd",
+      "name": "Split Out1"
+    },
+    {
+      "parameters": {
+        "unit": "minutes"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        768,
+        304
+      ],
+      "id": "50cc8560-1e45-46dd-a0fd-d4ef04be7f5e",
+      "name": "Wait5",
+      "webhookId": "1b10246e-7150-4482-bec0-b870e06882a4"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.kie.ai/api/v1/jobs/recordInfo?taskId={{ $json.data.taskId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        992,
+        304
+      ],
+      "id": "3af4c42b-b4c4-4e12-babe-2f032071aaa7",
+      "name": "체크 이미지1",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "VJUm7LSBgUn3tD3r",
+          "name": "kie.ai 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const output = [];\n\nfor (const item of items) {\n  try {\n    // data.resultJson 문자열 파싱\n    const result = JSON.parse(item.json.data.resultJson);\n\n    // 첫 번째 URL 추출\n    const url = result.resultUrls?.[0] ?? null;\n\n    output.push({\n      json: {\n        url\n      }\n    });\n\n  } catch (error) {\n    output.push({\n      json: {\n        url: null,\n        error: \"Parsing failed: \" + error.message\n      }\n    });\n  }\n}\n\nreturn output;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1216,
+        304
+      ],
+      "id": "6a49c7b4-3578-4330-8d8f-d77e8a0be8a3",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.kie.ai/api/v1/jobs/createTask",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "kling-2.6/image-to-video"
+            },
+            {
+              "name": "input.prompt",
+              "value": "전달되는 이미지를 활용해 영상을 만들어줘. 단, 기존 이미지 내 존재하는 텍스트 외 자체적인 판단으로 텍스트를 표시하는 것은 금지야."
+            },
+            {
+              "name": "input.image_urls",
+              "value": "={{ [$json.url] }}"
+            },
+            {
+              "name": "input.sound",
+              "value": "={{ false }}"
+            },
+            {
+              "name": "input.duration",
+              "value": "={{ $('Split Out1').item.json['output[0].content[0].text'].duration.toString() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1440,
+        304
+      ],
+      "id": "b45ebefb-216a-41a4-af68-09e1bcac838d",
+      "name": "영상 생성1",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "VJUm7LSBgUn3tD3r",
+          "name": "kie.ai 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-5",
+          "mode": "list",
+          "cachedResultName": "GPT-5"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "=당신은 전문 이미지 편집 기반 AI 프롬프터입니다.\n당신의 프롬프트는 “새 이미지를 창작”하는 것이 아니라,\n전달된 원본 이미지 상 인물 또는 캐릭터가 주어진 상황을 리포팅하는 모습으로 이미지를 재구성하여 장면별 영상에 필요한 형태로 편집하는 용도입니다.\n해당 프롬프트를 사용해 여러 장의 편집된 이미지를 만들고, 이를 영상으로 연결할 것입니다.\n\n👤 필수 : 원본 이미지의 인물/캐릭터가 메인 위치에 표시될 수 있는 다수 이미지 프롬프트 구성\n\n🚫 금지 : 텍스트가 포함된 이미지가 생성될 수 있는 프롬프트 구성\n\n🧩 User Prompt 데이터 구조\n{\n \"scene_n\": \"편집이 필요한 장면의 나레이션\",\n \"duration\": \"해당 나레이션 길이\"\n}\n\n📤 출력(JSON 형식)\n{\n \"scene_1\": {\n   \"origin_script\": \"\",\n   \"duration\": \"원본 duration 값\",\n   \"scene_img\": \"\"\n },\n \"scene_2\": {\n   \"origin_script\": \"\",\n   \"duration\": \"원본 duration 값\",\n   \"scene_img\": \"\"\n },\n \"scene_3\": {\n   \"origin_script\": \"\",\n   \"duration\": \"원본 duration 값\",\n   \"scene_img\": \"\"\n }\n}\n\n🛠️ 당신의 작업(핵심)\n각 scene에 대해:\n1) origin_script : 나레이션의 일부를 그대로 포함(내용 요약 아님)\n2) duration : 원본 duration 값 그대로 사용\n3) scene_img : 전달받은 원본 이미지 내 인물/캐릭터가 주인공/나레이터/리포터로 보여지는 이미지로 생성할 수 있는 프롬프트 구성\n\n각 scene_img 값 필수 포함 요소: “원본 이미지를 기반으로 편집하며, 이미지 내 텍스트는 절대 포함하지 않는다”를 명시하고 대상의 형태·종류·색감·질감 등 핵심 정체성 유지할 수 있도록 구성\n\n⚠️ 특이 상황 처리\nscene의 script 또는 duration이 비어 있으면\n→ 다른 장면의 흐름을 참조해 자연스럽게 채운 값으로 구성."
+            },
+            {
+              "content": "={{ $json.output[0].content[0].text.toJsonString() }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "textFormat": {
+            "textOptions": {
+              "type": "json_object"
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        -32,
+        304
+      ],
+      "id": "62641df7-6aa5-4e18-8f17-ac84fb6ba8bb",
+      "name": "이미지 에디트 프롬프트",
+      "credentials": {
+        "openAiApi": {
+          "id": "SdxUM4fZSebxlpJ3",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.kie.ai/api/v1/jobs/createTask",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "nano-banana-pro"
+            },
+            {
+              "name": "input.prompt",
+              "value": "={{ $json['output[0].content[0].text'].scene_img }}"
+            },
+            {
+              "name": "input.aspect_ratio",
+              "value": "={{ $('데이터 가져오기').item.json.Ratio }}"
+            },
+            {
+              "name": "input.image_input",
+              "value": "={{ [$('데이터 가져오기').item.json.Img_url] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        544,
+        304
+      ],
+      "id": "803bd1a1-fe93-4aaa-8745-b0fde4a7bef8",
+      "name": "이미지 에디터",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "VJUm7LSBgUn3tD3r",
+          "name": "kie.ai 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1SWBYOtCkEfVcHA7RCKVoU2MbpONY3lkkBTihK_ioovs",
+          "mode": "list",
+          "cachedResultName": "쇼츠/롱폼 만들기 테스트",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1SWBYOtCkEfVcHA7RCKVoU2MbpONY3lkkBTihK_ioovs/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Content",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1SWBYOtCkEfVcHA7RCKVoU2MbpONY3lkkBTihK_ioovs/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ID": "={{ $('데이터 가져오기').item.json.ID }}",
+            "srt_url": "={{ $json.audio.url }}"
+          },
+          "matchingColumns": [
+            "ID"
+          ],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Target",
+              "displayName": "Target",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Keyword",
+              "displayName": "Keyword",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Form",
+              "displayName": "Form",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Voice",
+              "displayName": "Voice",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Img_url",
+              "displayName": "Img_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Ratio",
+              "displayName": "Ratio",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Voice_ID",
+              "displayName": "Voice_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "title",
+              "displayName": "title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "description",
+              "displayName": "description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "script",
+              "displayName": "script",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tags",
+              "displayName": "tags",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "video_url",
+              "displayName": "video_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "srt_url",
+              "displayName": "srt_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2160,
+        320
+      ],
+      "id": "d9562773-a443-4f95-ae19-9ac82c9bcfd6",
+      "name": "Update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "OMBTo8r9g8jjmbUh",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "unit": "minutes"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        800,
+        544
+      ],
+      "id": "0f09667a-298b-4477-b5cc-0352343d274b",
+      "name": "Wait3",
+      "webhookId": "3156d248-251b-45b4-b6a5-058055eee558"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.video.url }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1936,
+        544
+      ],
+      "id": "fa528718-cd20-4cd3-8439-fee2111a5796",
+      "name": "영상 다운로드"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "데이터 가져오기",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "퍼플렉시티 데이터 조사": {
+      "main": [
+        [
+          {
+            "node": "스크립트",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "스크립트": {
+      "main": [
+        [
+          {
+            "node": "업데이트 데이타",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "데이터 가져오기": {
+      "main": [
+        [
+          {
+            "node": "퍼플렉시티 데이터 조사",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "업데이트 데이타": {
+      "main": [
+        [
+          {
+            "node": "make 오디오",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "make 오디오": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "체크 오디오",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "체크 오디오": {
+      "main": [
+        [
+          {
+            "node": "Analyze audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze audio": {
+      "main": [
+        [
+          {
+            "node": "srt 생성",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "srt 생성": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "이미지 프롬프트": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "이미지 생성",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait1": {
+      "main": [
+        [
+          {
+            "node": "체크 이미지",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "이미지 생성": {
+      "main": [
+        [
+          {
+            "node": "Wait1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "체크 이미지": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "영상 생성",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "영상 생성": {
+      "main": [
+        [
+          {
+            "node": "Wait2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait2": {
+      "main": [
+        [
+          {
+            "node": "체크 영상",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "체크 영상": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "비디오 합치기",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "비디오 합치기": {
+      "main": [
+        [
+          {
+            "node": "Wait3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "체크 영상1": {
+      "main": [
+        [
+          {
+            "node": "영상 오디오 합침",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "영상 오디오 합침": {
+      "main": [
+        [
+          {
+            "node": "Wait4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait4": {
+      "main": [
+        [
+          {
+            "node": "체크 영상 오디오",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "체크 영상 오디오": {
+      "main": [
+        [
+          {
+            "node": "영상 다운로드",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "이미지 프롬프트",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "이미지 에디트 프롬프트",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out1": {
+      "main": [
+        [
+          {
+            "node": "이미지 에디터",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait5": {
+      "main": [
+        [
+          {
+            "node": "체크 이미지1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "체크 이미지1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "영상 생성1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "영상 생성1": {
+      "main": [
+        [
+          {
+            "node": "Wait2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "이미지 에디트 프롬프트": {
+      "main": [
+        [
+          {
+            "node": "Split Out1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "이미지 에디터": {
+      "main": [
+        [
+          {
+            "node": "Wait5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait3": {
+      "main": [
+        [
+          {
+            "node": "체크 영상1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "영상 다운로드": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "660543a5-6b7c-46f3-a265-809aaa838199",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "670fa1df4fe08cf0af4163b69a636b4ad57968517cb943a6d58fe3ba458e8cc2"
+  },
+  "id": "qclgvkkdDwkqFjt2",
+  "tags": []
+}

@@ -1,0 +1,151 @@
+{
+  "name": "Skill - Antigravity (System Ops)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "antigravity-tool",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "webhook-trigger"
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.body.action }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "read_file"
+            },
+            {
+              "value2": "write_file",
+              "output": 1
+            },
+            {
+              "value2": "list_dir",
+              "output": 2
+            },
+            {
+              "value2": "run_command",
+              "output": 3
+            }
+          ]
+        }
+      },
+      "name": "Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [
+        200,
+        0
+      ],
+      "id": "action-router"
+    },
+    {
+      "parameters": {
+        "command": "=cat \"{{ $json.body.path }}\""
+      },
+      "name": "Read File",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        450,
+        -100
+      ],
+      "id": "read-file"
+    },
+    {
+      "parameters": {
+        "command": "=mkdir -p \"$(dirname \"{{ $json.body.path }}\")\" && echo \"{{ $json.body.content }}\" > \"{{ $json.body.path }}\""
+      },
+      "name": "Write File",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        450,
+        0
+      ],
+      "id": "write-file"
+    },
+    {
+      "parameters": {
+        "command": "=ls -la \"{{ $json.body.path }}\""
+      },
+      "name": "List Dir",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        450,
+        100
+      ],
+      "id": "list-dir"
+    },
+    {
+      "parameters": {
+        "command": "={{ $json.body.command }}"
+      },
+      "name": "Run Command",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        450,
+        200
+      ],
+      "id": "run-command"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Router": {
+      "main": [
+        [
+          {
+            "node": "Read File",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Write File",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "List Dir",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Run Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

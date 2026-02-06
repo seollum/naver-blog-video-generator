@@ -1,0 +1,748 @@
+{
+    "name": "네이버 블로그 숏폼 영상",
+    "nodes": [
+        {
+            "parameters": {},
+            "type": "n8n-nodes-base.manualTrigger",
+            "typeVersion": 1,
+            "position": [
+                100,
+                300
+            ],
+            "id": "trigger-01",
+            "name": "수동 트리거"
+        },
+        {
+            "parameters": {
+                "mode": "runOnceForAllItems",
+                "jsCode": "// 블로그 URL 입력\nconst blogUrl = 'https://blog.naver.com/example/123456789';\n\n// PC URL을 모바일 URL로 변환\nlet mobileUrl = blogUrl\n  .replace('blog.naver.com', 'm.blog.naver.com')\n  .replace('m.m.blog.naver.com', 'm.blog.naver.com');\n\nreturn [{\n  json: {\n    original_url: blogUrl,\n    mobile_url: mobileUrl,\n    thumbnail_folder: '/path/to/thumbnails',\n    hook_image_folder: '/path/to/hook_images'\n  }\n}];"
+            },
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                300,
+                300
+            ],
+            "id": "input-02",
+            "name": "URL 입력 및 변환"
+        },
+        {
+            "parameters": {
+                "url": "={{ $json.mobile_url }}",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.3,
+            "position": [
+                500,
+                300
+            ],
+            "id": "scrape-03",
+            "name": "블로그 HTML 가져오기"
+        },
+        {
+            "parameters": {
+                "modelId": {
+                    "__rl": true,
+                    "value": "gpt-4o-mini",
+                    "mode": "list"
+                },
+                "responses": {
+                    "values": [
+                        {
+                            "role": "system",
+                            "content": "당신은 네이버 블로그 HTML을 분석하여 포스팅 제목, 본문 텍스트, 이미지 URL을 정확히 추출하는 전문가입니다. 반드시 JSON 형식으로만 응답하세요."
+                        },
+                        {
+                            "content": "=다음 네이버 블로그 모바일 HTML에서 정보를 추출해주세요:\n\n{{ $json.data }}\n\n다음 JSON 형식으로만 응답:\n{\n  \"title\": \"포스팅 제목\",\n  \"content\": \"본문 전체 텍스트\",\n  \"images\": [\n    {\n      \"url\": \"이미지 URL\",\n      \"context\": \"이미지 설명\"\n    }\n  ]\n}\n\n[이미지 URL 추출 규칙]\n- 확장자가 .jpg, .jpeg, .png, .webp인 URL만 추출\n- .gif는 제외\n- 원본 크기 이미지 선호"
+                        }
+                    ]
+                },
+                "options": {
+                    "textFormat": {
+                        "textOptions": {
+                            "type": "json_object"
+                        }
+                    }
+                }
+            },
+            "type": "@n8n/n8n-nodes-langchain.openAi",
+            "typeVersion": 2.1,
+            "position": [
+                700,
+                300
+            ],
+            "id": "extract-04",
+            "name": "텍스트 이미지 추출"
+        },
+        {
+            "parameters": {
+                "mode": "runOnceForAllItems",
+                "jsCode": "const gptOutput = $input.first().json;\n\nlet extracted;\nif (gptOutput.output && gptOutput.output[0] && gptOutput.output[0].content) {\n  const textContent = gptOutput.output[0].content[0].text;\n  extracted = typeof textContent === 'string' ? JSON.parse(textContent) : textContent;\n} else {\n  extracted = gptOutput;\n}\n\nlet images = extracted.images || [];\nif (Array.isArray(images)) {\n  images = images.map(img => {\n    if (typeof img === 'object' && img.url) {\n      return {\n        url: img.url\n          .replace('mblogthumb-phinf.pstatic.net', 'blogfiles.pstatic.net')\n          .replace(/\\?type=.*$/, ''),\n        context: img.context\n      };\n    }\n    return img;\n  });\n}\n\nreturn [{\n  json: {\n    title: extracted.title || '제목 없음',\n    content: extracted.content || '',\n    images: images,\n    image_count: images.length\n  }\n}];"
+            },
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                900,
+                300
+            ],
+            "id": "cleanup-05",
+            "name": "데이터 정리"
+        },
+        {
+            "parameters": {
+                "modelId": {
+                    "__rl": true,
+                    "value": "gpt-4.1-mini",
+                    "mode": "list"
+                },
+                "responses": {
+                    "values": [
+                        {
+                            "role": "system",
+                            "content": "당신은 블로그 콘텐츠를 숏폼 영상용 스크립트로 변환하는 전문가입니다.\n\n**스크립트 작성 원칙**\n1. 300자 이내로 작성\n2. 구어체 문장 사용 (딱딱한 문어체 금지)\n3. 숫자는 한글로 표현 (15세 = 십오세)\n\n**출력 형식 (JSON)**\n{\n  \"title\": \"SEO 최적화 제목\",\n  \"description\": \"영상 설명 (150자 내외)\",\n  \"script\": \"나레이션 스크립트 (300자 이내)\",\n  \"tags\": \"키워드1, 키워드2, 키워드3\"\n}"
+                        },
+                        {
+                            "content": "=[제목]\n{{ $json.title }}\n\n[본문]\n{{ $json.content }}\n\n[이미지 개수]\n{{ $json.image_count }}\n\n위 블로그 내용을 바탕으로 50초 숏폼 영상용 스크립트를 작성해주세요."
+                        }
+                    ]
+                },
+                "options": {
+                    "textFormat": {
+                        "textOptions": {
+                            "type": "json_object"
+                        }
+                    }
+                }
+            },
+            "type": "@n8n/n8n-nodes-langchain.openAi",
+            "typeVersion": 2.1,
+            "position": [
+                1100,
+                300
+            ],
+            "id": "script-06",
+            "name": "스크립트 생성"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "https://queue.fal.run/fal-ai/elevenlabs/tts/eleven-v3",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "text",
+                            "value": "={{ JSON.parse($json.output[0].content[0].text).script }}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.3,
+            "position": [
+                1300,
+                300
+            ],
+            "id": "tts-07",
+            "name": "TTS 생성"
+        },
+        {
+            "parameters": {
+                "amount": 3,
+                "unit": "minutes"
+            },
+            "type": "n8n-nodes-base.wait",
+            "typeVersion": 1.1,
+            "position": [
+                1500,
+                300
+            ],
+            "id": "wait-08",
+            "name": "TTS 대기"
+        },
+        {
+            "parameters": {
+                "url": "=https://queue.fal.run/fal-ai/elevenlabs/requests/{{ $json.request_id }}",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.3,
+            "position": [
+                1700,
+                300
+            ],
+            "id": "check-tts-09",
+            "name": "TTS 체크"
+        },
+        {
+            "parameters": {
+                "resource": "audio",
+                "operation": "analyze",
+                "modelId": {
+                    "__rl": true,
+                    "value": "models/gemini-2.0-flash",
+                    "mode": "list"
+                },
+                "text": "srt 파일로 구성해서 해당 음성의 timestamps를 구성해 줘. 출력 예시는 다음과 같아(각 건의 넘버링 필요 없음) : \n\n00:00:00,000 --> 00:00:10,000\n안녕하세요, 여러분. 오늘은 50대를 위한 건강한 식단 관리법에 대해 이야기해 보겠습니다.\n\n00:00:10,001 --> 00:00:18,000\n다음 내용...",
+                "audioUrls": "={{ $json.audio.url }}",
+                "options": {}
+            },
+            "type": "@n8n/n8n-nodes-langchain.googleGemini",
+            "typeVersion": 1.1,
+            "position": [
+                1900,
+                300
+            ],
+            "id": "srt-10",
+            "name": "SRT 생성 (Gemini)"
+        },
+        {
+            "parameters": {
+                "modelId": {
+                    "__rl": true,
+                    "value": "gpt-4o-mini",
+                    "mode": "list"
+                },
+                "responses": {
+                    "values": [
+                        {
+                            "role": "system",
+                            "content": "당신은 SRT 분석 전문가입니다. SRT를 분석하여 Scene을 나눠주세요. Scene 길이는 5초 또는 10초입니다.\n\n## 출력 형식(JSON)\n{\n  \"scenes\": [\n    {\n      \"scene_number\": 1,\n      \"start_time\": \"00:00:00,000\",\n      \"end_time\": \"00:00:05,000\",\n      \"duration\": 5,\n      \"script\": \"해당 구간 텍스트\",\n      \"image_index\": 0\n    }\n  ]\n}\n\n## 필수사항\n- 영상 총 길이는 음성 길이보다 2초 이상 길어야 함\n- image_index는 0부터 시작하여 순서대로 배정"
+                        },
+                        {
+                            "content": "={{ $json.content.parts[0].text }}\n\n블로그 이미지 개수: {{ $('데이터 정리').item.json.image_count }}"
+                        }
+                    ]
+                },
+                "options": {
+                    "textFormat": {
+                        "textOptions": {
+                            "type": "json_object"
+                        }
+                    }
+                }
+            },
+            "type": "@n8n/n8n-nodes-langchain.openAi",
+            "typeVersion": 2.1,
+            "position": [
+                2100,
+                300
+            ],
+            "id": "scene-split-11",
+            "name": "Scene 분할 & 이미지 매칭"
+        },
+        {
+            "parameters": {
+                "mode": "runOnceForAllItems",
+                "jsCode": "// Scene 데이터와 이미지 URL 매칭\nconst sceneData = JSON.parse($('Scene 분할 & 이미지 매칭').first().json.output[0].content[0].text);\nconst images = $('데이터 정리').first().json.images;\n\nconst result = sceneData.scenes.map((scene, idx) => {\n  const imgIdx = scene.image_index % images.length; // 이미지 순환\n  return {\n    json: {\n      scene_number: scene.scene_number,\n      start_time: scene.start_time,\n      end_time: scene.end_time,\n      duration: scene.duration,\n      script: scene.script,\n      image_url: images[imgIdx]?.url || images[0]?.url\n    }\n  };\n});\n\nreturn result;"
+            },
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                2300,
+                300
+            ],
+            "id": "match-12",
+            "name": "이미지 매칭"
+        },
+        {
+            "parameters": {
+                "options": {}
+            },
+            "type": "n8n-nodes-base.splitInBatches",
+            "typeVersion": 3,
+            "position": [
+                2500,
+                300
+            ],
+            "id": "loop-13",
+            "name": "Scene 루프"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "https://queue.fal.run/fal-ai/ffmpeg-api/create-video-from-image",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "image_url",
+                            "value": "={{ $json.image_url }}"
+                        },
+                        {
+                            "name": "duration",
+                            "value": "={{ $json.duration }}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.3,
+            "position": [
+                2700,
+                200
+            ],
+            "id": "img-to-vid-14",
+            "name": "이미지→영상 변환"
+        },
+        {
+            "parameters": {
+                "amount": 1,
+                "unit": "minutes"
+            },
+            "type": "n8n-nodes-base.wait",
+            "typeVersion": 1.1,
+            "position": [
+                2900,
+                200
+            ],
+            "id": "wait-15",
+            "name": "변환 대기"
+        },
+        {
+            "parameters": {
+                "url": "=https://queue.fal.run/fal-ai/ffmpeg-api/requests/{{ $json.request_id }}",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.3,
+            "position": [
+                3100,
+                200
+            ],
+            "id": "check-vid-16",
+            "name": "영상 체크"
+        },
+        {
+            "parameters": {
+                "fieldsToAggregate": {
+                    "fieldToAggregate": [
+                        {
+                            "fieldToAggregate": "video.url"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.aggregate",
+            "typeVersion": 1,
+            "position": [
+                2700,
+                500
+            ],
+            "id": "aggregate-17",
+            "name": "영상 수집"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "https://queue.fal.run/fal-ai/ffmpeg-api/merge-videos",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "video_urls",
+                            "value": "={{ $json['video.url'] }}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.3,
+            "position": [
+                2900,
+                500
+            ],
+            "id": "merge-18",
+            "name": "영상 합치기"
+        },
+        {
+            "parameters": {
+                "amount": 2,
+                "unit": "minutes"
+            },
+            "type": "n8n-nodes-base.wait",
+            "typeVersion": 1.1,
+            "position": [
+                3100,
+                500
+            ],
+            "id": "wait-19",
+            "name": "합치기 대기"
+        },
+        {
+            "parameters": {
+                "url": "=https://queue.fal.run/fal-ai/ffmpeg-api/requests/{{ $json.request_id }}",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.3,
+            "position": [
+                3300,
+                500
+            ],
+            "id": "check-merge-20",
+            "name": "합침 체크"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "https://queue.fal.run/fal-ai/ffmpeg-api/merge-audio-video",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "video_url",
+                            "value": "={{ $json.video.url }}"
+                        },
+                        {
+                            "name": "audio_url",
+                            "value": "={{ $('TTS 체크').item.json.audio.url }}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.3,
+            "position": [
+                3500,
+                500
+            ],
+            "id": "audio-merge-21",
+            "name": "오디오 합성"
+        },
+        {
+            "parameters": {
+                "amount": 1,
+                "unit": "minutes"
+            },
+            "type": "n8n-nodes-base.wait",
+            "typeVersion": 1.1,
+            "position": [
+                3700,
+                500
+            ],
+            "id": "wait-22",
+            "name": "오디오 대기"
+        },
+        {
+            "parameters": {
+                "url": "=https://queue.fal.run/fal-ai/ffmpeg-api/requests/{{ $json.request_id }}",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.3,
+            "position": [
+                3900,
+                500
+            ],
+            "id": "final-check-23",
+            "name": "최종 영상 체크"
+        },
+        {
+            "parameters": {
+                "url": "={{ $json.video.url }}",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.3,
+            "position": [
+                4100,
+                500
+            ],
+            "id": "download-24",
+            "name": "영상 다운로드"
+        }
+    ],
+    "connections": {
+        "수동 트리거": {
+            "main": [
+                [
+                    {
+                        "node": "URL 입력 및 변환",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "URL 입력 및 변환": {
+            "main": [
+                [
+                    {
+                        "node": "블로그 HTML 가져오기",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "블로그 HTML 가져오기": {
+            "main": [
+                [
+                    {
+                        "node": "텍스트 이미지 추출",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "텍스트 이미지 추출": {
+            "main": [
+                [
+                    {
+                        "node": "데이터 정리",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "데이터 정리": {
+            "main": [
+                [
+                    {
+                        "node": "스크립트 생성",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "스크립트 생성": {
+            "main": [
+                [
+                    {
+                        "node": "TTS 생성",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "TTS 생성": {
+            "main": [
+                [
+                    {
+                        "node": "TTS 대기",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "TTS 대기": {
+            "main": [
+                [
+                    {
+                        "node": "TTS 체크",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "TTS 체크": {
+            "main": [
+                [
+                    {
+                        "node": "SRT 생성 (Gemini)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "SRT 생성 (Gemini)": {
+            "main": [
+                [
+                    {
+                        "node": "Scene 분할 & 이미지 매칭",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Scene 분할 & 이미지 매칭": {
+            "main": [
+                [
+                    {
+                        "node": "이미지 매칭",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "이미지 매칭": {
+            "main": [
+                [
+                    {
+                        "node": "Scene 루프",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Scene 루프": {
+            "main": [
+                [
+                    {
+                        "node": "이미지→영상 변환",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "영상 수집",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "이미지→영상 변환": {
+            "main": [
+                [
+                    {
+                        "node": "변환 대기",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "변환 대기": {
+            "main": [
+                [
+                    {
+                        "node": "영상 체크",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "영상 체크": {
+            "main": [
+                [
+                    {
+                        "node": "Scene 루프",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "영상 수집": {
+            "main": [
+                [
+                    {
+                        "node": "영상 합치기",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "영상 합치기": {
+            "main": [
+                [
+                    {
+                        "node": "합치기 대기",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "합치기 대기": {
+            "main": [
+                [
+                    {
+                        "node": "합침 체크",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "합침 체크": {
+            "main": [
+                [
+                    {
+                        "node": "오디오 합성",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "오디오 합성": {
+            "main": [
+                [
+                    {
+                        "node": "오디오 대기",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "오디오 대기": {
+            "main": [
+                [
+                    {
+                        "node": "최종 영상 체크",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "최종 영상 체크": {
+            "main": [
+                [
+                    {
+                        "node": "영상 다운로드",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1"
+    },
+    "staticData": null,
+    "tags": [],
+    "triggerCount": 0,
+    "updatedAt": "2026-02-06T17:50:00.000Z",
+    "versionId": "1"
+}

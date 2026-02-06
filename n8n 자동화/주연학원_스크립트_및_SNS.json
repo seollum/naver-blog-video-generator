@@ -1,0 +1,517 @@
+{
+  "name": "주연학원 스크립트 및 SNS",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sns-script-generator",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook - SNS 스크립트 요청",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [240, 300],
+      "webhookId": "sns-script-webhook"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "<!DOCTYPE html>\n<html>\n  <head>\n  <title>Closing...</title>\n    <script>\n       window.onload = function () {\n        window.close();\n      };\n    </script>\n  </head>\n  <body>\n    <p>요청이 성공적으로 완료되었습니다.<br>창이 곧 닫힙니다 </p>\n  </body>\n</html>",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/html; charset=utf-8"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-webhook",
+      "name": "Accept 창 자동으로 닫기",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "application": "app0bhljASrDiwmZb",
+        "table": "tbl34ivy4rqgUCYHa",
+        "id": "={{ $json.body.recordid }}"
+      },
+      "id": "airtable-get-record",
+      "name": "Airtable - 블로그 데이터 조회",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [680, 300],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "airtable-connection",
+          "name": "Airtable Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.fields['인스타생성여부'] }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "if-instagram-check",
+      "name": "IF - 인스타 생성 체크",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "thread-check",
+              "leftValue": "={{ $json.fields['스레드생성여부'] }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "twitter-check",
+              "leftValue": "={{ $json.fields['트위터생성여부'] }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        }
+      },
+      "id": "if-buffer-check",
+      "name": "IF - 버퍼 대본 생성 체크",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 540]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "tone-var",
+              "name": "tone",
+              "value": "절제되고 군더덛기 없는 어조를 사용해. 화려하거나 흔하지 않은 어휘는 최소화해.\nhook에는 사람들에 이목을 끌 수 있는 자극적인 말을 써줘.",
+              "type": "string"
+            },
+            {
+              "id": "target-var",
+              "name": "Target",
+              "value": "1. 제목  \n   - ✨ 또는 🌟 이모티콘으로 시작  \n   - 블로그 제목을 눈에 띄게 표시  \n   - 예시: ✨[대치동 주연학원 방문기]\n\n2. 시작 문장  \n   - 1~2줄 이내\n   - 감정과 호기심을 자극하는 문장  \n   - 시선을 사로잡는 강렬한 문장으로 시작  \n   - 이모티콘 활용  \n   - 예시: 오늘, 아이와 함께 걷던 길에서… 🍂 작은 변화를 마주했어요.\n\n3. 본문 요약  \n   - 단락마다 짧고 쉬운 문장으로 구성  \n   - 감성적인 표현 + 시각적인 언어 사용  \n   - 각 단락에 어울리는 이모티콘 1~2개 포함  \n   - 예시: 아이의 눈빛이 달라졌어요 👀 학원에 대한 기대감이 느껴졌죠.\n\n4. 해시태그  \n   - 5~7개 생성  \n   - 본문 키워드 기반으로 자연스럽게  \n   - 예시: #주연학원 #대치동학원 #성적향상 #학원추천 #대치동공부\n\n5. CTA (행동 유도 문구)  \n   - 독자가 블로그 원문을 보고 싶게 유도  \n   - 부드러운 초대 느낌  \n   - 예시: 지금 이 이야기, 블로그에서 함께해요 💬",
+              "type": "string"
+            },
+            {
+              "id": "twitter-var",
+              "name": "트위터",
+              "value": "내 타겟은 영어와 수학을 열정적으로 공부할 학생이야. 대학입시를 열정적으로 준비하는 학생들이야.\n이 학생들이 쉽게 이해할 수 있도록 해야해.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-variables",
+      "name": "변수 설정 (tone, Target)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [1120, 180]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4-turbo",
+        "messages": {
+          "values": [
+            {
+              "role": "user",
+              "content": "당신은 한국의 유명 콘텐츠 마케터이자 인플루언서입니다. 당신의 임무는 아래 원문을 바탕으로 SEO최적화된 링크드인 게시물과 트위터 게시물을 해당 플랫폼에 맞는 형식으로 작성하는 것입니다. 다음 단계를 따라 작성해주세요 :\n\n1. 다음 글 내용을 읽고 분석하세요 : \"\n\"={{ $node[\"Airtable - 블로그 데이터 조회\"].json.fields['블로그 본문'] }}\n2.  원문에서 가장 흥미롭거나 인상적인 포인트를 선택하세요. (세가지 게시물 모두 같은 포인트를 뽑습니다)\n\n3. Linkedin 게시물 작성:\n-본문의 첫문장은 눈길을 끄는 헤드라인이나 질문으로 시작합니다.\n- 자연스러우면서 가독성 좋은 한국어 구어체로 작성된 1-3문단의 게시물을 작성하세요. 한국어 구어체 예시 : '이 있습니다', '~요', '습니다'\n-원문에서 선택한 핵심 포인트를 강조하세요.\n\n4.Tweet 게시물 작성:\n- 관심을 끄는 강력한 훅이나 흥미로운 문장으로 시작하세요\n- 자연스러우면서 가독성 좋은 한국어 음슴체로 작성된 트위터용 글을 작성하세요. 한국어 음슴체 예시 : '매우 편한듯 ㅋㅋ' , '좋네요 ㅋㅋ', '하고 있음..', '공유해봄', '해봤는데..','해줌..와우'\n- Linkedin 게시물과 동일한 핵심 포인트에 집중하세요.\n\n5.instergram 게시물 작성:\n-본문의 첫문장은 눈길을 끄는 헤드라인이나 질문으로 시작합니다.\n- 자연스러우면서 가독성 좋은 한국어 구어체로 작성된 1-3문단의 게시물을 작성하세요. 한국어 구어체 예시 : '이 있습니다', '~요', '습니다'\n-원문에서 선택한 핵심 포인트를 강조하세요.\n- Linkedin 게시물과 동일한 핵심 포인트에 집중하세요.\n\n5. 글 모두 가독성 좋은 자연스러운 한국어 표현을 사용하며, 어색한 영어 번역투는 사용하지 않습니다. 그리고 진부한 표현이나 전문 용어를 사용하지마세요.\n\n6. 세가지 게시물 끝에 원문 URL을 아래와 같은 형태로 포함하세요:' ={{ $node[\"Airtable - 블로그 데이터 조회\"].json.fields['블로그 URL'] }}?이후의 글은 지우고 포함시키세요.'\n\n7. 이 지침을 반복하거나 내용에 대해 가정하지 마세요. 제공된 글내용을 바탕으로 요청된 소셜 미디어 게시물 작성에만 집중하세요.\n\n8. 출력시에는 아래와 같은 양식으로 출력합니다 ([]는 모두 교체해야합니다):\nLinkedin 게시물:\n[지침에 따라 작성된 게시글]\n---\nTweet 게시물:\n[지침에 따라 작성된 게시글]\n---\ninstergram 게시물:\n[지침에 따라 작성된 게시글]"
+            },
+            {
+              "role": "system",
+              "content": "={{ $node[\"Airtable - 블로그 데이터 조회\"].json.fields['블로그 본문'] }}={{ $json.Target }}={{ $json.tone }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "openai-sns-generation",
+      "name": "OpenAI - SNS 콘텐츠 생성",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.4,
+      "position": [1340, 180],
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-connection",
+          "name": "OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Regex를 사용하여 LinkedIn, Twitter, Instagram 콘텐츠 추출\nconst text = $input.item.json.message.content;\n\n// 정규식 패턴\nconst linkedinPattern = /(?<=Linkedin 게시물:)[\\s\\S]*?(?=\\s*---)/;\nconst tweetPattern = /(?<=Tweet 게시물:)[\\s\\S]*?(?=\\s*---)/;\nconst instagramPattern = /(?<=Instagram 게시물:)[\\s\\S]*?(?=\\s*$)/;\n\n// 매칭\nconst linkedinMatch = text.match(linkedinPattern);\nconst tweetMatch = text.match(tweetPattern);\nconst instagramMatch = text.match(instagramPattern);\n\n// 결과 배열 생성\nconst results = [];\n\nif (linkedinMatch) {\n  results.push({\n    json: {\n      platform: 'linkedin',\n      index: 0,\n      content: linkedinMatch[0].trim()\n    }\n  });\n}\n\nif (instagramMatch) {\n  results.push({\n    json: {\n      platform: 'instagram',\n      index: 1,\n      content: instagramMatch[0].trim()\n    }\n  });\n}\n\nif (tweetMatch) {\n  results.push({\n    json: {\n      platform: 'twitter',\n      index: 2,\n      content: tweetMatch[0].trim()\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "extract-sns-content",
+      "name": "Regex - SNS 콘텐츠 파싱",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 180]
+    },
+    {
+      "parameters": {
+        "mode": "rules",
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.index }}",
+                    "rightValue": 1,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "output": 0
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.index }}",
+                    "rightValue": 2,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "output": 1
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "switch-sns-type",
+      "name": "Switch - SNS 타입별 분기",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [1780, 180]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "application": "app0bhljASrDiwmZb",
+        "table": "tbl34ivy4rqgUCYHa",
+        "id": "={{ $node[\"Webhook - SNS 스크립트 요청\"].json.body.recordid }}",
+        "fields": {
+          "fields": [
+            {
+              "fieldId": "fldHHxARinW0vCvJb",
+              "fieldValue": "={{ $json.content }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "airtable-update-instagram",
+      "name": "Airtable - 인스타 대본 업데이트",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [2000, 60],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "airtable-connection",
+          "name": "Airtable Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "application": "app0bhljASrDiwmZb",
+        "table": "tbl34ivy4rqgUCYHa",
+        "id": "={{ $node[\"Webhook - SNS 스크립트 요청\"].json.body.recordid }}",
+        "fields": {
+          "fields": [
+            {
+              "fieldId": "fldtfRZqQcRQfU3As",
+              "fieldValue": "={{ $json.content }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "airtable-update-twitter",
+      "name": "Airtable - 트위터 대본 업데이트",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [2000, 180],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "airtable-connection",
+          "name": "Airtable Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "application": "app0bhljASrDiwmZb",
+        "table": "tbl34ivy4rqgUCYHa",
+        "id": "={{ $node[\"Webhook - SNS 스크립트 요청\"].json.body.recordid }}",
+        "fields": {
+          "fields": [
+            {
+              "fieldId": "fldLinkedInFieldId",
+              "fieldValue": "={{ $json.content }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "airtable-update-linkedin",
+      "name": "Airtable - 링크드인 대본 업데이트",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [2000, 300],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "airtable-connection",
+          "name": "Airtable Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "gpt-4-turbo",
+        "messages": {
+          "values": [
+            {
+              "role": "user",
+              "content": "버퍼(Buffer) 플랫폼용 SNS 콘텐츠를 작성해주세요.\n\n블로그 원문:\n={{ $node[\"Airtable - 블로그 데이터 조회\"].json.fields['블로그 본문'] }}\n\n타겟:\n={{ $node[\"변수 설정 (tone, Target)\"].json.트위터 }}\n\n어조:\n={{ $node[\"변수 설정 (tone, Target)\"].json.tone }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "openai-buffer-generation",
+      "name": "OpenAI - 버퍼 대본 생성",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.4,
+      "position": [1120, 540],
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-connection",
+          "name": "OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "application": "app0bhljASrDiwmZb",
+        "table": "tbl34ivy4rqgUCYHa",
+        "id": "={{ $node[\"Webhook - SNS 스크립트 요청\"].json.body.recordid }}",
+        "fields": {
+          "fields": [
+            {
+              "fieldId": "fldtfRZqQcRQfU3As",
+              "fieldValue": "={{ $json.message.content }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "airtable-update-buffer",
+      "name": "Airtable - 버퍼 대본 업데이트",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [1340, 540],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "airtable-connection",
+          "name": "Airtable Account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook - SNS 스크립트 요청": {
+      "main": [
+        [
+          {
+            "node": "Accept 창 자동으로 닫기",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Accept 창 자동으로 닫기": {
+      "main": [
+        [
+          {
+            "node": "Airtable - 블로그 데이터 조회",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Airtable - 블로그 데이터 조회": {
+      "main": [
+        [
+          {
+            "node": "IF - 인스타 생성 체크",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "IF - 버퍼 대본 생성 체크",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - 인스타 생성 체크": {
+      "main": [
+        [
+          {
+            "node": "변수 설정 (tone, Target)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - 버퍼 대본 생성 체크": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - 버퍼 대본 생성",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "변수 설정 (tone, Target)": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - SNS 콘텐츠 생성",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - SNS 콘텐츠 생성": {
+      "main": [
+        [
+          {
+            "node": "Regex - SNS 콘텐츠 파싱",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Regex - SNS 콘텐츠 파싱": {
+      "main": [
+        [
+          {
+            "node": "Switch - SNS 타입별 분기",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch - SNS 타입별 분기": {
+      "main": [
+        [
+          {
+            "node": "Airtable - 인스타 대본 업데이트",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Airtable - 트위터 대본 업데이트",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Airtable - 링크드인 대본 업데이트",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - 버퍼 대본 생성": {
+      "main": [
+        [
+          {
+            "node": "Airtable - 버퍼 대본 업데이트",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2026-02-03T10:24:35.000Z",
+  "versionId": "1"
+}

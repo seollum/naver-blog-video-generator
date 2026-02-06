@@ -1,0 +1,1136 @@
+{
+    "name": "Blog2Clips - 블로그 클립 생성",
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "blog-to-clips",
+                "responseMode": "responseNode",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2,
+            "position": [
+                100,
+                300
+            ],
+            "id": "webhook-01",
+            "name": "Webhook",
+            "webhookId": "blog-to-clips"
+        },
+        {
+            "parameters": {
+                "respondWith": "json",
+                "responseBody": "={{ { \"success\": true, \"job_id\": $json.body.job_id, \"message\": \"처리가 시작되었습니다\" } }}",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1.1,
+            "position": [
+                300,
+                300
+            ],
+            "id": "respond-02",
+            "name": "응답 전송"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "={{ $json.body.callback_url }}",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "job_id",
+                            "value": "={{ $json.body.job_id }}"
+                        },
+                        {
+                            "name": "status",
+                            "value": "processing"
+                        },
+                        {
+                            "name": "progress",
+                            "value": "5"
+                        },
+                        {
+                            "name": "progress_message",
+                            "value": "블로그 URL 분석 중..."
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.3,
+            "position": [
+                500,
+                300
+            ],
+            "id": "callback-start-03",
+            "name": "콜백: 시작"
+        },
+        {
+            "parameters": {
+                "mode": "runOnceForAllItems",
+                "jsCode": "const input = $input.first().json.body;\n\n// PC URL을 모바일 URL로 변환\nlet blogUrl = input.blog_url || '';\nlet mobileUrl = blogUrl\n  .replace('blog.naver.com', 'm.blog.naver.com')\n  .replace('m.m.blog.naver.com', 'm.blog.naver.com');\n\nreturn [{\n  json: {\n    job_id: input.job_id,\n    callback_url: input.callback_url,\n    original_url: blogUrl,\n    mobile_url: mobileUrl\n  }\n}];"
+            },
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                700,
+                300
+            ],
+            "id": "url-convert-04",
+            "name": "URL 변환"
+        },
+        {
+            "parameters": {
+                "url": "={{ $json.mobile_url }}",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.3,
+            "position": [
+                900,
+                300
+            ],
+            "id": "scrape-05",
+            "name": "블로그 HTML"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "={{ $('URL 변환').item.json.callback_url }}",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "job_id",
+                            "value": "={{ $('URL 변환').item.json.job_id }}"
+                        },
+                        {
+                            "name": "status",
+                            "value": "processing"
+                        },
+                        {
+                            "name": "progress",
+                            "value": "10"
+                        },
+                        {
+                            "name": "progress_message",
+                            "value": "블로그 내용 추출 중..."
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.3,
+            "position": [
+                1100,
+                300
+            ],
+            "id": "callback-10-06",
+            "name": "콜백: 10%"
+        },
+        {
+            "parameters": {
+                "modelId": {
+                    "__rl": true,
+                    "value": "gpt-4o-mini",
+                    "mode": "list"
+                },
+                "messages": {
+                    "values": [
+                        {
+                            "role": "system",
+                            "content": "네이버 블로그 HTML에서 제목, 본문, 이미지 URL을 추출합니다. JSON으로만 응답하세요."
+                        },
+                        {
+                            "content": "=HTML:\n{{ $('블로그 HTML').item.json.data }}\n\n출력 형식:\n{\"title\": \"제목\", \"content\": \"본문 전체\", \"images\": [\"url1\", \"url2\"]}\n\n규칙: jpg/png/webp만, gif 제외"
+                        }
+                    ]
+                },
+                "options": {
+                    "responseFormat": "json_object"
+                }
+            },
+            "type": "@n8n/n8n-nodes-langchain.openAi",
+            "typeVersion": 2.1,
+            "position": [
+                1300,
+                300
+            ],
+            "id": "extract-07",
+            "name": "내용 추출"
+        },
+        {
+            "parameters": {
+                "mode": "runOnceForAllItems",
+                "jsCode": "const raw = $input.first().json;\nlet data;\ntry {\n  const text = raw.output?.[0]?.content?.[0]?.text || raw.message?.content || '{}';\n  data = typeof text === 'string' ? JSON.parse(text) : text;\n} catch(e) {\n  data = {title: '', content: '', images: []};\n}\n\nconst images = (data.images || []).map(url => \n  (typeof url === 'string' ? url : url.url || '')\n    .replace('mblogthumb-phinf.pstatic.net', 'blogfiles.pstatic.net')\n    .replace(/\\?type=.*$/, '')\n).filter(u => u);\n\nconst prev = $('URL 변환').first().json;\n\nreturn [{\n  json: {\n    ...prev,\n    title: data.title || '',\n    content: data.content || '',\n    images: images\n  }\n}];"
+            },
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1500,
+                300
+            ],
+            "id": "parse-08",
+            "name": "데이터 정리"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "={{ $json.callback_url }}",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "job_id",
+                            "value": "={{ $json.job_id }}"
+                        },
+                        {
+                            "name": "status",
+                            "value": "processing"
+                        },
+                        {
+                            "name": "progress",
+                            "value": "20"
+                        },
+                        {
+                            "name": "progress_message",
+                            "value": "스크립트 생성 중..."
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.3,
+            "position": [
+                1700,
+                300
+            ],
+            "id": "callback-20-09",
+            "name": "콜백: 20%"
+        },
+        {
+            "parameters": {
+                "modelId": {
+                    "__rl": true,
+                    "value": "gpt-4.1-mini",
+                    "mode": "list"
+                },
+                "messages": {
+                    "values": [
+                        {
+                            "role": "system",
+                            "content": "블로그를 50초 클립 스크립트로 변환. 300자 이내, 구어체. JSON: {\"script\": \"나레이션\"}"
+                        },
+                        {
+                            "content": "=제목: {{ $('데이터 정리').item.json.title }}\n본문: {{ $('데이터 정리').item.json.content }}"
+                        }
+                    ]
+                },
+                "options": {
+                    "responseFormat": "json_object"
+                }
+            },
+            "type": "@n8n/n8n-nodes-langchain.openAi",
+            "typeVersion": 2.1,
+            "position": [
+                1900,
+                300
+            ],
+            "id": "script-10",
+            "name": "스크립트 생성"
+        },
+        {
+            "parameters": {
+                "mode": "runOnceForAllItems",
+                "jsCode": "const raw = $input.first().json;\nlet script = '';\ntry {\n  const text = raw.output?.[0]?.content?.[0]?.text || '{}';\n  const parsed = JSON.parse(text);\n  script = parsed.script || '';\n} catch(e) {\n  script = '';\n}\n\nconst prev = $('데이터 정리').first().json;\n\nreturn [{\n  json: {\n    ...prev,\n    script: script\n  }\n}];"
+            },
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                2100,
+                300
+            ],
+            "id": "script-parse-11",
+            "name": "스크립트 추출"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "={{ $json.callback_url }}",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "job_id",
+                            "value": "={{ $json.job_id }}"
+                        },
+                        {
+                            "name": "status",
+                            "value": "processing"
+                        },
+                        {
+                            "name": "progress",
+                            "value": "30"
+                        },
+                        {
+                            "name": "progress_message",
+                            "value": "TTS 음성 생성 중..."
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.3,
+            "position": [
+                2300,
+                300
+            ],
+            "id": "callback-30-12",
+            "name": "콜백: 30%"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "https://queue.fal.run/fal-ai/elevenlabs/tts/eleven-v3",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "text",
+                            "value": "={{ $('스크립트 추출').item.json.script }}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.3,
+            "position": [
+                2500,
+                300
+            ],
+            "id": "tts-13",
+            "name": "TTS 요청"
+        },
+        {
+            "parameters": {
+                "amount": 3,
+                "unit": "minutes"
+            },
+            "type": "n8n-nodes-base.wait",
+            "typeVersion": 1.1,
+            "position": [
+                2700,
+                300
+            ],
+            "id": "wait-tts-14",
+            "name": "TTS 대기"
+        },
+        {
+            "parameters": {
+                "url": "=https://queue.fal.run/fal-ai/elevenlabs/requests/{{ $('TTS 요청').item.json.request_id }}",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.3,
+            "position": [
+                2900,
+                300
+            ],
+            "id": "tts-check-15",
+            "name": "TTS 결과"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "={{ $('스크립트 추출').item.json.callback_url }}",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "job_id",
+                            "value": "={{ $('스크립트 추출').item.json.job_id }}"
+                        },
+                        {
+                            "name": "status",
+                            "value": "processing"
+                        },
+                        {
+                            "name": "progress",
+                            "value": "50"
+                        },
+                        {
+                            "name": "progress_message",
+                            "value": "SRT 자막 생성 중..."
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.3,
+            "position": [
+                3100,
+                300
+            ],
+            "id": "callback-50-16",
+            "name": "콜백: 50%"
+        },
+        {
+            "parameters": {
+                "resource": "audio",
+                "operation": "analyze",
+                "modelId": {
+                    "__rl": true,
+                    "value": "models/gemini-2.0-flash",
+                    "mode": "list"
+                },
+                "text": "이 오디오를 SRT 형식으로 변환해주세요.\n\n형식:\n00:00:00,000 --> 00:00:10,000\n첫 번째 문장\n\n00:00:10,001 --> 00:00:20,000\n두 번째 문장",
+                "audioUrls": "={{ $('TTS 결과').item.json.audio.url }}",
+                "options": {}
+            },
+            "type": "@n8n/n8n-nodes-langchain.googleGemini",
+            "typeVersion": 1.1,
+            "position": [
+                3300,
+                300
+            ],
+            "id": "srt-17",
+            "name": "SRT 생성"
+        },
+        {
+            "parameters": {
+                "mode": "runOnceForAllItems",
+                "jsCode": "const srtText = $input.first().json.content?.parts?.[0]?.text || '';\nconst data = $('스크립트 추출').first().json;\nconst images = data.images || [];\nconst audioUrl = $('TTS 결과').first().json.audio?.url || '';\n\nconst lines = srtText.split('\\n\\n').filter(block => block.trim());\nconst scenes = [];\n\nlines.forEach((block, idx) => {\n  const match = block.match(/(\\d{2}:\\d{2}:\\d{2},\\d{3})\\s*-->\\s*(\\d{2}:\\d{2}:\\d{2},\\d{3})/);\n  if (match) {\n    const textLine = block.split('\\n').slice(1).join(' ').trim();\n    const startParts = match[1].split(/[:,]/).map(Number);\n    const endParts = match[2].split(/[:,]/).map(Number);\n    const startSec = startParts[0]*3600 + startParts[1]*60 + startParts[2] + startParts[3]/1000;\n    const endSec = endParts[0]*3600 + endParts[1]*60 + endParts[2] + endParts[3]/1000;\n    let duration = Math.ceil(endSec - startSec);\n    if (duration < 3) duration = 5;\n\n    scenes.push({\n      index: idx,\n      start: match[1],\n      end: match[2],\n      duration: duration,\n      text: textLine,\n      image_url: images[idx % images.length] || images[0] || ''\n    });\n  }\n});\n\nreturn [{\n  json: {\n    ...data,\n    srt: srtText,\n    audio_url: audioUrl,\n    scenes: scenes\n  }\n}];"
+            },
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                3500,
+                300
+            ],
+            "id": "scene-parse-18",
+            "name": "Scene 파싱"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "={{ $json.callback_url }}",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "job_id",
+                            "value": "={{ $json.job_id }}"
+                        },
+                        {
+                            "name": "status",
+                            "value": "processing"
+                        },
+                        {
+                            "name": "progress",
+                            "value": "60"
+                        },
+                        {
+                            "name": "progress_message",
+                            "value": "이미지 영상 변환 중..."
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.3,
+            "position": [
+                3700,
+                300
+            ],
+            "id": "callback-60-19",
+            "name": "콜백: 60%"
+        },
+        {
+            "parameters": {
+                "mode": "runOnceForAllItems",
+                "jsCode": "const data = $input.first().json;\nconst scenes = data.scenes || [];\n\nreturn scenes.map((scene, idx) => ({\n  json: {\n    scene_index: idx,\n    image_url: scene.image_url,\n    duration: scene.duration || 5,\n    job_id: data.job_id,\n    callback_url: data.callback_url,\n    audio_url: data.audio_url\n  }\n}));"
+            },
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                3900,
+                300
+            ],
+            "id": "split-20",
+            "name": "Scene 분리"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "https://queue.fal.run/fal-ai/ffmpeg-api/create-video-from-image",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "image_url",
+                            "value": "={{ $json.image_url }}"
+                        },
+                        {
+                            "name": "duration",
+                            "value": "={{ $json.duration }}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.3,
+            "position": [
+                4100,
+                300
+            ],
+            "id": "img-vid-21",
+            "name": "이미지→영상"
+        },
+        {
+            "parameters": {
+                "amount": 2,
+                "unit": "minutes"
+            },
+            "type": "n8n-nodes-base.wait",
+            "typeVersion": 1.1,
+            "position": [
+                4300,
+                300
+            ],
+            "id": "wait-vid-22",
+            "name": "영상 대기"
+        },
+        {
+            "parameters": {
+                "url": "=https://queue.fal.run/fal-ai/ffmpeg-api/requests/{{ $('이미지→영상').item.json.request_id }}",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.3,
+            "position": [
+                4500,
+                300
+            ],
+            "id": "vid-check-23",
+            "name": "영상 결과"
+        },
+        {
+            "parameters": {
+                "mode": "runOnceForAllItems",
+                "jsCode": "const items = $input.all();\nconst videoUrls = items.map(item => item.json.video?.url).filter(u => u);\nconst first = items[0]?.json || {};\n\nreturn [{\n  json: {\n    video_urls: videoUrls,\n    job_id: first.job_id || $('Scene 분리').first().json.job_id,\n    callback_url: first.callback_url || $('Scene 분리').first().json.callback_url,\n    audio_url: first.audio_url || $('Scene 분리').first().json.audio_url\n  }\n}];"
+            },
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                4700,
+                300
+            ],
+            "id": "collect-24",
+            "name": "영상 수집"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "={{ $json.callback_url }}",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "job_id",
+                            "value": "={{ $json.job_id }}"
+                        },
+                        {
+                            "name": "status",
+                            "value": "processing"
+                        },
+                        {
+                            "name": "progress",
+                            "value": "80"
+                        },
+                        {
+                            "name": "progress_message",
+                            "value": "영상 합치는 중..."
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.3,
+            "position": [
+                4900,
+                300
+            ],
+            "id": "callback-80-25",
+            "name": "콜백: 80%"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "https://queue.fal.run/fal-ai/ffmpeg-api/merge-videos",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "video_urls",
+                            "value": "={{ $('영상 수집').item.json.video_urls }}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.3,
+            "position": [
+                5100,
+                300
+            ],
+            "id": "merge-26",
+            "name": "영상 합치기"
+        },
+        {
+            "parameters": {
+                "amount": 2,
+                "unit": "minutes"
+            },
+            "type": "n8n-nodes-base.wait",
+            "typeVersion": 1.1,
+            "position": [
+                5300,
+                300
+            ],
+            "id": "wait-merge-27",
+            "name": "합치기 대기"
+        },
+        {
+            "parameters": {
+                "url": "=https://queue.fal.run/fal-ai/ffmpeg-api/requests/{{ $('영상 합치기').item.json.request_id }}",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.3,
+            "position": [
+                5500,
+                300
+            ],
+            "id": "merge-check-28",
+            "name": "합침 결과"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "={{ $('영상 수집').item.json.callback_url }}",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "job_id",
+                            "value": "={{ $('영상 수집').item.json.job_id }}"
+                        },
+                        {
+                            "name": "status",
+                            "value": "processing"
+                        },
+                        {
+                            "name": "progress",
+                            "value": "90"
+                        },
+                        {
+                            "name": "progress_message",
+                            "value": "오디오 합성 중..."
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.3,
+            "position": [
+                5700,
+                300
+            ],
+            "id": "callback-90-29",
+            "name": "콜백: 90%"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "https://queue.fal.run/fal-ai/ffmpeg-api/merge-audio-video",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "video_url",
+                            "value": "={{ $('합침 결과').item.json.video.url }}"
+                        },
+                        {
+                            "name": "audio_url",
+                            "value": "={{ $('영상 수집').item.json.audio_url }}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.3,
+            "position": [
+                5900,
+                300
+            ],
+            "id": "audio-30",
+            "name": "오디오 합성"
+        },
+        {
+            "parameters": {
+                "amount": 1,
+                "unit": "minutes"
+            },
+            "type": "n8n-nodes-base.wait",
+            "typeVersion": 1.1,
+            "position": [
+                6100,
+                300
+            ],
+            "id": "wait-audio-31",
+            "name": "오디오 대기"
+        },
+        {
+            "parameters": {
+                "url": "=https://queue.fal.run/fal-ai/ffmpeg-api/requests/{{ $('오디오 합성').item.json.request_id }}",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.3,
+            "position": [
+                6300,
+                300
+            ],
+            "id": "final-32",
+            "name": "최종 영상"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "={{ $('영상 수집').item.json.callback_url }}",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "job_id",
+                            "value": "={{ $('영상 수집').item.json.job_id }}"
+                        },
+                        {
+                            "name": "status",
+                            "value": "complete"
+                        },
+                        {
+                            "name": "progress",
+                            "value": "100"
+                        },
+                        {
+                            "name": "progress_message",
+                            "value": "완료!"
+                        },
+                        {
+                            "name": "video_url",
+                            "value": "={{ $json.video.url }}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.3,
+            "position": [
+                6500,
+                300
+            ],
+            "id": "callback-complete-33",
+            "name": "콜백: 완료"
+        }
+    ],
+    "connections": {
+        "Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "응답 전송",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "응답 전송": {
+            "main": [
+                [
+                    {
+                        "node": "콜백: 시작",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "콜백: 시작": {
+            "main": [
+                [
+                    {
+                        "node": "URL 변환",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "URL 변환": {
+            "main": [
+                [
+                    {
+                        "node": "블로그 HTML",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "블로그 HTML": {
+            "main": [
+                [
+                    {
+                        "node": "콜백: 10%",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "콜백: 10%": {
+            "main": [
+                [
+                    {
+                        "node": "내용 추출",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "내용 추출": {
+            "main": [
+                [
+                    {
+                        "node": "데이터 정리",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "데이터 정리": {
+            "main": [
+                [
+                    {
+                        "node": "콜백: 20%",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "콜백: 20%": {
+            "main": [
+                [
+                    {
+                        "node": "스크립트 생성",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "스크립트 생성": {
+            "main": [
+                [
+                    {
+                        "node": "스크립트 추출",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "스크립트 추출": {
+            "main": [
+                [
+                    {
+                        "node": "콜백: 30%",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "콜백: 30%": {
+            "main": [
+                [
+                    {
+                        "node": "TTS 요청",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "TTS 요청": {
+            "main": [
+                [
+                    {
+                        "node": "TTS 대기",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "TTS 대기": {
+            "main": [
+                [
+                    {
+                        "node": "TTS 결과",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "TTS 결과": {
+            "main": [
+                [
+                    {
+                        "node": "콜백: 50%",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "콜백: 50%": {
+            "main": [
+                [
+                    {
+                        "node": "SRT 생성",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "SRT 생성": {
+            "main": [
+                [
+                    {
+                        "node": "Scene 파싱",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Scene 파싱": {
+            "main": [
+                [
+                    {
+                        "node": "콜백: 60%",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "콜백: 60%": {
+            "main": [
+                [
+                    {
+                        "node": "Scene 분리",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Scene 분리": {
+            "main": [
+                [
+                    {
+                        "node": "이미지→영상",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "이미지→영상": {
+            "main": [
+                [
+                    {
+                        "node": "영상 대기",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "영상 대기": {
+            "main": [
+                [
+                    {
+                        "node": "영상 결과",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "영상 결과": {
+            "main": [
+                [
+                    {
+                        "node": "영상 수집",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "영상 수집": {
+            "main": [
+                [
+                    {
+                        "node": "콜백: 80%",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "콜백: 80%": {
+            "main": [
+                [
+                    {
+                        "node": "영상 합치기",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "영상 합치기": {
+            "main": [
+                [
+                    {
+                        "node": "합치기 대기",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "합치기 대기": {
+            "main": [
+                [
+                    {
+                        "node": "합침 결과",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "합침 결과": {
+            "main": [
+                [
+                    {
+                        "node": "콜백: 90%",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "콜백: 90%": {
+            "main": [
+                [
+                    {
+                        "node": "오디오 합성",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "오디오 합성": {
+            "main": [
+                [
+                    {
+                        "node": "오디오 대기",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "오디오 대기": {
+            "main": [
+                [
+                    {
+                        "node": "최종 영상",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "최종 영상": {
+            "main": [
+                [
+                    {
+                        "node": "콜백: 완료",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1"
+    }
+}

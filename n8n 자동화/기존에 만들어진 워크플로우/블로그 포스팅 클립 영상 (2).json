@@ -1,0 +1,1634 @@
+{
+  "name": "블로그 포스팅 클립 영상",
+  "nodes": [
+    {
+      "parameters": {
+        "url": "={{ $json.mobile_url }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        976,
+        48
+      ],
+      "id": "cd536239-e1bd-494d-9657-e9128033627e",
+      "name": "블로그 HTML 가져오기"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Google Sheets에서 가져온 데이터\nconst inputData = $input.all();\n\n// 결과를 저장할 배열\nconst results = [];\n\n// 각 항목을 처리\nfor (const item of inputData) {\n  const data = item.json;\n  \n  // PC URL을 모바일 URL로 변경\n  let mobileUrl = data.url || '';\n  \n  if (mobileUrl) {\n    mobileUrl = mobileUrl\n      .replace('blog.naver.com', 'm.blog.naver.com')\n      .replace('m.m.blog.naver.com', 'm.blog.naver.com'); // 중복 방지\n  }\n  \n  // 결과 객체 생성\n  results.push({\n    json: {\n      row_number: data.row_number,\n      ID: data.ID,\n      original_url: data.url,\n      mobile_url: mobileUrl,\n      Status: data.Status,\n      Voice: data.Voice,\n      Voice_ID: data.Voice_ID,\n      title: data.title,\n      description: data.description,\n      script: data.script,\n      tags: data.tags,\n      video_url: data.video_url\n    }\n  });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        752,
+        48
+      ],
+      "id": "2e9190ed-74f4-4d70-9ef5-ff07ce154865",
+      "name": "모바일 URL 변경"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "=당신은 대한민국 시청자들의 눈높이에 맞춰 복잡한 블로그포스팅의 내용을 쉽고 매력적인 스토리텔링으로 풀어내는 **최고의 영상 콘텐츠 전문 기획자**입니다.\n\n**[핵심 임무]**\nUser prompt를 통해 전달된 **관련 블로그 포스팅 내용, 블로그 이미지**를 분석하여, 시청자의 공감과 흥미를 극대화하는 영상 콘텐츠를 기획하고 나레이션을 위한 스크립트(대본)를 작성해야 합니다.\n\n**[스크립트 작성 원칙]**\n1.  **블로그 포스팅**을 **블로그이미지**에 맞게 논리적이고 설득력 있게 전달합니다.\n2.  스크립트는 실제 나레이션이 가능하도록 **간결하고 청취 친화적인 구어체 문장 구조**로만 구성해야 합니다. (딱딱한 문어체 사용 금지)\n3.  **마케팅 및 SEO(검색 엔진 최적화)**를 고려하여 제목(`title`)과 설명(`description`), 태그(`tags`)를 구성해야 합니다.\n4.  **300자 이내** 스크립트로 구성해 주세요.\n\n**[출력 형식 제약 - JSON]**\n출력 결과는 **오직 아래 JSON 구조만을 사용하며**, 추가적인 설명이나 코멘트를 일절 포함하지 않아야 합니다.\n\n```json\n{\n  \"title\" : \"콘텐츠의 핵심 키워드가 잘 나타나는 제목\",\n  \"description\" : \"영상 내용을 요약하고 시청을 유도하는 설명 (150자 내외)\",\n  \"script\" : \"블로그 포스팅 내용을 바탕으로 구성된 나레이션 대본 전체. **반드시 핵심 데이터와 결론을 포함한 본론 내용을 우선으로 구성**하며, 구어체 문장 구조만 사용함\", 숫자는 한글로 표현,예시) 15세 = 십오세 , 20세 = 이십세 등\n  \"tags\" : \"영상 내용과 관련된 핵심 키워드 5개 이상 (쉼표로 구분)\"\n}"
+            },
+            {
+              "content": "=[제목]\n{{ $json.title }}\n\n[본문]\n{{ $json.content }}\n\n[이미지]\n{{ $json.images }}\n\n다음 JSON 형식으로 출력:\n{\n  \"title\": \"SEO 최적화된 영상 제목\",\n  \"description\": \"영상 요약 설명 (150자 내외)\",\n  \"script\": \"구어체 나레이션 대본 (300자 이내)\",\n  \"tags\": \"핵심 키워드 5개 이상 (쉼표 구분)\"\n}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "textFormat": {
+            "textOptions": {
+              "type": "json_object"
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        288,
+        288
+      ],
+      "id": "37e543da-f335-4dcb-9436-20024a2d0c0d",
+      "name": "스크립트",
+      "credentials": {
+        "openAiApi": {
+          "id": "SdxUM4fZSebxlpJ3",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://queue.fal.run/fal-ai/elevenlabs/tts/eleven-v3",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ $json.script }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        800,
+        288
+      ],
+      "id": "6b76c361-a95e-4e75-94a3-5d6cc0fc84cd",
+      "name": "make 오디오",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SJJtNVot5ImhnANi",
+          "name": "fal.ai"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 3,
+        "unit": "minutes"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        992,
+        288
+      ],
+      "id": "fdb0d310-45ae-44bf-87b5-bf11b8a874e3",
+      "name": "Wait",
+      "webhookId": "7de0547b-74b9-4096-bca3-c0ea93bba705"
+    },
+    {
+      "parameters": {
+        "url": "=https://queue.fal.run/fal-ai/elevenlabs/requests/{{ $json.request_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1184,
+        288
+      ],
+      "id": "eb6cf81c-5f7f-4a58-96d4-308bb4472afd",
+      "name": "체크 오디오",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SJJtNVot5ImhnANi",
+          "name": "fal.ai"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.0-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.0-flash"
+        },
+        "text": "srt 파일로 구성해서 해당 음성의 timestamps를 구성해 줘. 출력 예시는 다음과 같아(각 건의 넘버링 필요 없음) : \n\n00:00:00,000 --> 00:00:10,000\n안녕하세요, 여러분. 오늘은 50대를 위한 건강한 식단 관리법에 대해 이야기해 보겠습니다. 중년이 되면 신체 기능이 조금씩 변화하기 때문에 음식 선택에 더 신경 써야 합니다. 먼저 단백질 섭취를 충분히 하는 것이 중요합니다. \n\n00:00:10,001 --> 00:00:18,000\n근육량 감소를 막고 체력을 유지하는 데 필수적이죠. 닭가슴살, 생선, 두부 같은 고단백 식품을 식단에 포함하세요. 다음으로 채소와 과일을 매일 충분히 섭취해 주세요. \n\n00:00:18,001 --> 00:00:24,000\n오늘 알려드린 내용으로 여러분의 식단을 점검해 보시고 활기차고 건강한 50대를 보내시길 바랍니다. 시청해 주셔서 감사합니다.\n```",
+        "audioUrls": "={{ $json.audio.url }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        1376,
+        288
+      ],
+      "id": "91a3a1ee-d9cf-40ec-badc-f1d28f7f97c1",
+      "name": "Analyze audio",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "lIrG4KOZ3OSH9UCX",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-5",
+          "mode": "list",
+          "cachedResultName": "GPT-5"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "=당신은 유능한 SRT(SubRip Text) 분석 전문가입니다. User Prompt로 전달 받는 SRT를 분석하여, 총 영상 길이를 고려한 Scence을 나누어 주세요. Scene의 길이는 5초 또는 10초로 구성가능합니다.\n\n## 출력 형식(JSON)\n{\n \"scene_1\": {\n   \"origin_script\": \"\",\n   \"duration\": 5 또는 10\n },\n \"scene_2\": {\n   \"origin_script\": \"\",\n   \"duration\": 5 또는 10\n },\n \"scene_3\": {\n   \"origin_script\": \"\",\n   \"duration\": 5 또는 10\n }\n}\n\n## 필수사항\nScenc별 Duration의 합, 즉 영상의 총 길이는 반드시 SRT를 통해 파악되는 음성 길이보다 최소 2초 이상 길어야 합니다. 예를 들어 음성 길이가 44초일 경우, 영상 총 길이는 50초(5초 또는 10초의 합으로 구성)이어야 하며, 음성 길이가 37초일 경우, 영상 총 길이는 40초가 되어야 함."
+            },
+            {
+              "content": "={{ $json.content.parts[0].text }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "textFormat": {
+            "textOptions": {
+              "type": "json_object"
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        1856,
+        240
+      ],
+      "id": "30384f37-63fa-40dd-89d2-063cdfc4dee3",
+      "name": "srt 생성",
+      "credentials": {
+        "openAiApi": {
+          "id": "SdxUM4fZSebxlpJ3",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "=당신은 전문 이미지 생성 프롬프터입니다.\n다양한 업종(뷰티, 교육, 식음료, 피트니스 등)의 블로그 콘텐츠를 숏폼 영상용 이미지로 변환합니다.\n생성된 1:1 이미지는 이후 9:16 영상의 중앙에 배치되며, 상단에는 한글 메인 키워드가 별도로 오버레이됩니다.\n\n🔒 [고정 스타일 가이드]\n\n🎨 스타일\n- 한국 웹툰 일러스트 스타일 (Korean webtoon illustration style)\n- 2D 디지털 페인팅, 부드러운 브러시 터치\n- 세미 리얼리즘 (semi-realistic)\n- 한국 드라마 감성, 따뜻하고 감성적인 분위기\n- 자연스러운 빛과 그림자 표현\n- 스토리가 느껴지는 구도\n\n🎨 색상 전략\n- 부드러운 파스텔 톤 (Soft pastel palette)\n- 따뜻한 색감 위주 (베이지, 크림, 소프트 핑크, 연한 블루)\n- 자연스러운 채도 (50-70%)\n- 업종별 메인 컬러 1개 + 보조 컬러 2개\n- 한국적 감성의 은은한 색조\n\n📐 구도 (1:1 정사각형)\n- 캐릭터 중심, 정중앙 또는 1/3 지점 배치\n- 상하좌우 여백 15-20% 확보\n- 주요 요소는 중앙 70% 영역 집중\n- 심플하면서도 감성적인 구도\n- 시선의 흐름이 자연스러운 레이아웃\n\n👤 한국인 캐릭터 표현 (핵심!)\n- **명확한 한국인 얼굴 특징**:\n  • 자연스러운 둥근 얼굴형 또는 계란형\n  • 윤기 있는 검은색 또는 흑갈색 생머리/웨이브\n  • 진한 갈색 또는 검은색 눈동자\n  • 자연스러운 아시아 피부톤 (밝은 베이지~연한 아이보리)\n  • 동양인 특유의 은은한 눈매\n  • 자연스러운 쌍꺼풀 또는 무쌍\n  \n- 세미 리얼리즘 얼굴 (웹툰 주인공 느낌)\n- 자연스러운 신체 비율 (과장 없이)\n- 한국 패션 스타일 (캐주얼, 깔끔)\n- 1:1 비율에서는 바스트샷(어깨~머리) 또는 상반신 권장\n- 자연스럽고 따뜻한 표정\n\n🖼️ 배경 처리\n- 부드럽게 블러 처리된 배경\n- 심플하고 깔끔한 인테리어/외부 환경\n- 한국적 공간 감성 (카페, 집, 사무실 등)\n- 배경은 주인공을 돋보이게 하는 보조 역할\n- 자연광이 들어오는 창문, 은은한 조명\n\n💡 조명\n- 자연광 느낌 (창문으로 들어오는 빛)\n- 부드럽고 따뜻한 라이팅\n- 자연스러운 그림자 (강하지 않게)\n- 골든 아워 분위기 또는 실내 따뜻한 조명\n- 웹툰 특유의 부드러운 하이라이트\n\n🚫 절대 금지사항\n\n⛔⛔⛔ 텍스트 관련 절대 금지 ⛔⛔⛔\n- 모든 문자 절대 금지 (한글, 영문, 숫자, 기호 등)\n- 간판, 표지판, 배너, 포스터 금지\n- 책 제목, 메뉴판, 안내판 등 모든 텍스트 요소 배제\n- 티셔츠 프린팅, 로고, 브랜드명 금지\n- 화면 속 텍스트(TV, 휴대폰 화면) 금지\n- \"blank\", \"clean\", \"no text\" 필수 명시\n\n⛔ 기타 금지사항\n- 과도하게 만화적인 데포르메 금지\n- 서양인 얼굴 특징 금지\n- 복잡하고 산만한 배경 금지\n- 과도한 채도의 원색 사용 금지\n- 3D 렌더링 스타일 금지 (2D 유지)\n\n🧩 업종별 맞춤 스타일 가이드\n\norigin_script에서 업종을 파악하고 아래 가이드 적용:\n\n- 뷰티/왁싱/피부관리\n  색상: 소프트 핑크, 베이지, 라이트 라벤더\n  분위기: 우아하고 편안한, 힐링되는 느낌\n  캐릭터: 릴랙스한 표정, 눈을 감고 있는 평화로운 모습\n  공간: 깔끔한 스파 룸, 부드러운 조명\n\n- 교육/학원/학습\n  색상: 웜 베이지, 소프트 블루, 밝은 옐로우\n  분위기: 따뜻하고 희망적인, 집중하는 느낌\n  캐릭터: 진지하면서도 밝은 표정, 책상 앞 앉은 모습\n  공간: 깔끔한 스터디 공간, 창문으로 들어오는 자연광\n\n- 식음료/맛집/카페\n  색상: 웜 브라운, 크림, 소프트 오렌지\n  분위기: 아늑하고 정감 있는, 맛있어 보이는\n  캐릭터: 만족스러운 표정, 음식을 즐기는 모습\n  공간: 따뜻한 카페/레스토랑 인테리어\n\n- 피트니스/헬스/운동\n  색상: 프레시 그린, 소프트 블루, 화이트\n  분위기: 활기차고 건강한, 에너지 넘치는\n  캐릭터: 자신감 있는 표정, 운동하는 역동적 모습\n  공간: 깔끔한 헬스장, 밝은 조명\n\n- 병원/의료/헬스케어\n  색상: 클린 화이트, 라이트 블루, 민트\n  분위기: 깨끗하고 신뢰감 있는, 안심되는\n  캐릭터: 친절하고 전문적인 표정\n  공간: 밝고 깔끔한 의료 공간\n\n- 일상/라이프스타일\n  색상: 웜 베이지, 크림, 소프트 그레이\n  분위기: 편안하고 자연스러운, 일상의 소소함\n  캐릭터: 자연스러운 일상 표정\n  공간: 집, 거실, 침실 등 편안한 공간\n\n📤 출력 형식 (JSON)\n\n{\n  \"scene_1\": {\n    \"origin_script\": \"원본 나레이션 스크립트 그대로\",\n    \"duration\": \"원본 duration 값 그대로\",\n    \"scene_img\": \"영어로 작성된 이미지 생성 프롬프트\"\n  },\n  \"scene_2\": {\n    \"origin_script\": \"원본 나레이션 스크립트 그대로\",\n    \"duration\": \"원본 duration 값 그대로\",\n    \"scene_img\": \"영어로 작성된 이미지 생성 프롬프트\"\n  }\n}\n\n🛠️ scene_img 작성 원칙\n\n반드시 영어로 작성하며, 아래 구조를 따릅니다:\n\n[장면 설정] + [한국인 캐릭터 상세 묘사] + [감정/액션] + [색상 팔레트] + [조명] + [스타일 태그] + [텍스트 금지]\n\n✅ 필수 포함 키워드 (반드시 순서대로)\n\n1. 장면 설정: \"Cozy/Bright/Elegant [장소] interior\"\n2. 캐릭터: \"Korean person with black hair, brown eyes, natural Asian features\"\n3. 감정/액션: 구체적인 표정과 동작 묘사\n4. 색상: \"soft pastel palette, [업종별 색상] tones\"\n5. 조명: \"natural soft lighting, warm golden hour atmosphere\" 또는 \"gentle indoor lighting\"\n6. 스타일: \"Korean webtoon illustration style, digital painting, semi-realistic, soft brush strokes\"\n7. 구도: \"1:1 square composition, centered layout\"\n8. 배경: \"simple clean background, blurred backdrop\"\n9. 텍스트 금지: \"NO text, NO letters, NO signs, NO banners, blank surfaces, clean walls, text-free image\"\n10. 분위기: 업종별 감성 키워드\n\n✅ 강화된 프롬프트 예시\n\n교육/학원:\n\"Warm study room interior with natural window light, young Korean woman with long black hair and brown eyes sitting at clean wooden desk, gentle focused expression while reading book, soft beige and light blue color palette, natural soft lighting from window, Korean webtoon illustration style digital painting semi-realistic with soft brush strokes, 1:1 square composition centered layout, simple clean background with bookshelf slightly blurred, NO text NO letters NO signs blank book covers clean walls text-free image, peaceful studying atmosphere, cozy and hopeful mood\"\n\n뷰티샵:\n\"Elegant spa treatment room interior, relaxed Korean woman with smooth black hair and brown eyes lying comfortably on treatment bed, peaceful serene expression with eyes gently closed and soft smile, pastel pink and beige warm tones, gentle diffused lighting creating calm atmosphere, Korean webtoon illustration style digital painting semi-realistic soft brush strokes, 1:1 square composition centered, simple clean background with plants and candles softly blurred, NO text NO letters NO signs blank surfaces clean walls text-free image, luxurious healing spa mood, tranquil and soothing feeling\"\n\n맛집/카페:\n\"Cozy Korean cafe interior with warm lighting, happy Korean person with black hair and brown eyes sitting at wooden table, satisfied delighted expression while enjoying hot coffee, warm brown and cream color palette, natural golden hour lighting through window, Korean webtoon illustration style digital painting semi-realistic soft brush strokes, 1:1 square composition centered, simple clean background with cafe interior elements slightly blurred, NO text NO letters NO signs NO menu boards blank surfaces clean walls text-free image, comfortable homey atmosphere, warm inviting feeling\"\n\n헬스장/피트니스:\n\"Bright modern gym interior, energetic Korean woman with black ponytail hair and brown eyes doing stretching exercise, confident focused expression with natural smile, fresh green and white clean tones, bright natural lighting creating fresh atmosphere, Korean webtoon illustration style digital painting semi-realistic soft brush strokes, 1:1 square composition centered, simple clean background with gym equipment softly blurred, NO text NO letters NO signs blank surfaces clean walls text-free image, healthy active lifestyle mood, motivating energetic feeling\"\n\n병원/의료:\n\"Clean bright hospital consultation room, friendly Korean doctor with neat black hair and brown eyes sitting at desk, warm professional expression with gentle smile, clean white and light blue color palette, soft natural lighting creating trust, Korean webtoon illustration style digital painting semi-realistic soft brush strokes, 1:1 square composition centered, simple clean background with medical office elements slightly blurred, NO text NO letters NO signs blank surfaces clean walls text-free image, professional caring atmosphere, reassuring comfortable feeling\"\n\n일상/홈:\n\"Comfortable living room interior with soft natural light, relaxed Korean person with black hair and brown eyes sitting on cozy sofa, peaceful content expression with gentle smile, warm beige and cream soft tones, natural window lighting creating homey atmosphere, Korean webtoon illustration style digital painting semi-realistic soft brush strokes, 1:1 square composition centered, simple clean background with home interior softly blurred, NO text NO letters NO signs blank surfaces clean walls text-free image, everyday life warmth, comfortable peaceful mood\"\n\n📏 프롬프트 작성 세부 규칙\n\n- **총 길이**: 영어 기준 200-250자 (충분한 디테일)\n- **캐릭터 묘사**: \"Korean person with black hair, brown eyes, natural Asian features\" 필수\n- **감정 표현**: 표정과 눈빛을 구체적으로 (예: \"gentle focused expression\", \"peaceful with eyes closed\")\n- **조명**: 자연광 또는 따뜻한 실내 조명 명시\n- **색상**: soft, pastel, warm 같은 부드러운 톤 강조\n- **스타일**: \"Korean webtoon illustration style, digital painting, semi-realistic, soft brush strokes\" 전체 포함\n- **배경**: \"simple clean background, slightly blurred\" 등으로 심플하게\n- **텍스트 차단**: \"NO text NO signs blank surfaces clean walls text-free\" 모두 포함\n- **분위기**: 마지막에 감성 키워드 2-3개 추가\n\n⚠️ 특수 케이스 처리\n\n**책/노트 등장 시:**\n\"reading clean book with blank cover\" (빈 표지)\n\n**화이트보드/칠판:**\n\"clean empty whiteboard\" (빈 칠판)\n\n**컴퓨터/휴대폰 화면:**\n\"looking at blank screen\" (빈 화면)\n\n**의류 프린팅:**\n\"wearing solid color shirt\" (단색 옷)\n\n**실내 장식:**\n\"simple abstract art on wall\" (추상화만)\n\n⚠️ 기타 주의사항\n- origin_script와 duration은 절대 수정 금지\n- 비어있는 값은 맥락으로 추정하여 채움\n- 모든 scene 완전한 값 출력 필수\n- 각 scene마다 약간씩 다른 각도/구도 시도\n\n🎯 최종 체크리스트\n\n✓ origin_script와 duration 원본 유지\n✓ scene_img는 100% 영어 작성\n✓ \"Korean person with black hair, brown eyes\" 필수 포함\n✓ \"Korean webtoon illustration style, digital painting, semi-realistic, soft brush strokes\" 필수\n✓ \"NO text NO signs blank surfaces clean walls text-free\" 모두 포함\n✓ 간판, 표지판, 텍스트 요소 완전 배제\n✓ 업종별 색상/조명/분위기 적용\n✓ 1:1 정사각형, 중앙 배치\n✓ 감정과 분위기 구체적 표현\n✓ 자연광/따뜻한 조명 묘사\n✓ 부드러운 파스텔 톤 명시"
+            },
+            {
+              "content": "=={{ JSON.stringify($('srt 생성').item.json.output[0].content[0].text) }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "textFormat": {
+            "textOptions": {
+              "type": "json_object"
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        496,
+        592
+      ],
+      "id": "066d37c2-8ae5-4c16-a4cc-e9e544591c6e",
+      "name": "이미지 프롬프트",
+      "credentials": {
+        "openAiApi": {
+          "id": "SdxUM4fZSebxlpJ3",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "output[0].content[0].text",
+        "include": "=",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        816,
+        592
+      ],
+      "id": "32ab872e-ac4a-4531-bcf8-edba4d7034c0",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "unit": "minutes"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1200,
+        592
+      ],
+      "id": "250efef8-e229-4d03-be79-25b883cec32a",
+      "name": "Wait1",
+      "webhookId": "1b10246e-7150-4482-bec0-b870e06882a4"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.kie.ai/api/v1/jobs/createTask",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "nano-banana-pro"
+            },
+            {
+              "name": "input.prompt",
+              "value": "={{ $json['output[0].content[0].text'].scene_img }}"
+            },
+            {
+              "name": "input.aspect_ratio",
+              "value": "9:16"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1008,
+        592
+      ],
+      "id": "fe080fb3-342b-4fe0-9d0e-cc7ef727ffe6",
+      "name": "이미지 생성",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "VJUm7LSBgUn3tD3r",
+          "name": "kie.ai 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://api.kie.ai/api/v1/jobs/recordInfo?taskId={{ $json.data.taskId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1392,
+        592
+      ],
+      "id": "d72eb2bd-167f-413c-9690-d47fa1c217d4",
+      "name": "체크 이미지",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "VJUm7LSBgUn3tD3r",
+          "name": "kie.ai 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const output = [];\n\nfor (const item of items) {\n  try {\n    // data.resultJson 문자열 파싱\n    const result = JSON.parse(item.json.data.resultJson);\n\n    // 첫 번째 URL 추출\n    const url = result.resultUrls?.[0] ?? null;\n\n    output.push({\n      json: {\n        url\n      }\n    });\n\n  } catch (error) {\n    output.push({\n      json: {\n        url: null,\n        error: \"Parsing failed: \" + error.message\n      }\n    });\n  }\n}\n\nreturn output;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        976,
+        816
+      ],
+      "id": "51455aee-b92c-4263-b5a8-17d775e35ac0",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.kie.ai/api/v1/jobs/createTask",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "kling-2.6/image-to-video"
+            },
+            {
+              "name": "input.prompt",
+              "value": "전달되는 이미지를 활용해 영상을 만들어줘. 단, 기존 이미지 내 존재하는 텍스트 외 자체적인 판단으로 텍스트를 표시하는 것은 금지야."
+            },
+            {
+              "name": "input.image_urls",
+              "value": "={{ [$json.url] }}"
+            },
+            {
+              "name": "input.sound",
+              "value": "={{ false }}"
+            },
+            {
+              "name": "input.duration",
+              "value": "={{ $('Split Out').item.json['output[0].content[0].text'].duration.toString() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1184,
+        816
+      ],
+      "id": "afa56cb3-38cd-4d93-b114-52cc8a1f12e0",
+      "name": "영상 생성",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "VJUm7LSBgUn3tD3r",
+          "name": "kie.ai 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 10,
+        "unit": "minutes"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1376,
+        816
+      ],
+      "id": "3da55dc0-d973-4b84-9f18-d7fbdc025c85",
+      "name": "Wait2",
+      "webhookId": "96c40c01-ed44-4bc7-ba11-c3ba7371f1b5"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.kie.ai/api/v1/jobs/recordInfo?taskId={{ $json.data.taskId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1584,
+        816
+      ],
+      "id": "0830d158-97c0-44bf-8dd5-fd29731bd606",
+      "name": "체크 영상",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "VJUm7LSBgUn3tD3r",
+          "name": "kie.ai 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const output = [];\n\nfor (const item of items) {\n  try {\n    // data.resultJson 문자열 파싱\n    const result = JSON.parse(item.json.data.resultJson);\n\n    // 첫 번째 URL 추출\n    const url = result.resultUrls?.[0] ?? null;\n\n    output.push({\n      json: {\n        url\n      }\n    });\n\n  } catch (error) {\n    output.push({\n      json: {\n        url: null,\n        error: \"Parsing failed: \" + error.message\n      }\n    });\n  }\n}\n\nreturn output;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1776,
+        816
+      ],
+      "id": "9c485b82-c181-47cd-861a-050c2840428d",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "url"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1968,
+        816
+      ],
+      "id": "5eff0abc-277b-4781-a127-8aa14b6f2c96",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://queue.fal.run/fal-ai/ffmpeg-api/merge-videos",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "video_urls",
+              "value": "={{ $json.url }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        304,
+        1040
+      ],
+      "id": "696ddef0-bd0d-433b-8249-3eaf9dd58cb9",
+      "name": "비디오 합치기",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SJJtNVot5ImhnANi",
+          "name": "fal.ai"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://queue.fal.run/fal-ai/ffmpeg-api/requests/{{ $json.request_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        720,
+        1040
+      ],
+      "id": "06da363c-bc68-439f-a524-2c2046b1270f",
+      "name": "체크 영상1",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SJJtNVot5ImhnANi",
+          "name": "fal.ai"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://queue.fal.run/fal-ai/ffmpeg-api/merge-audio-video",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "video_url",
+              "value": "={{ $json.video.url }}"
+            },
+            {
+              "name": "audio_url",
+              "value": "={{ $('체크 오디오').item.json.audio.url }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        928,
+        1040
+      ],
+      "id": "0a92c036-ab4c-4537-b646-da6c197c048f",
+      "name": "영상 오디오 합침",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SJJtNVot5ImhnANi",
+          "name": "fal.ai"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "unit": "minutes"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1136,
+        1040
+      ],
+      "id": "dbcfd4cc-4578-4224-829b-14874b415010",
+      "name": "Wait4",
+      "webhookId": "8e51283e-9a86-4e90-aedf-8a9b63207128"
+    },
+    {
+      "parameters": {
+        "url": "=https://queue.fal.run/fal-ai/ffmpeg-api/requests/{{ $json.request_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1344,
+        1040
+      ],
+      "id": "cf79d5c4-7629-47b2-85f6-8de0a583f470",
+      "name": "체크 영상 오디오",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SJJtNVot5ImhnANi",
+          "name": "fal.ai"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "unit": "minutes"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        512,
+        1040
+      ],
+      "id": "cd6f6f15-1bcc-4c1d-af9f-884335f1f7df",
+      "name": "Wait3",
+      "webhookId": "3156d248-251b-45b4-b6a5-058055eee558"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.video.url }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1552,
+        1040
+      ],
+      "id": "0b472a6c-dc0f-4730-8a03-fbf7db99a9ef",
+      "name": "영상 다운로드"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "당신은 네이버 블로그 HTML을 분석하여 포스팅 제목, 본문 텍스트, 이미지 URL을 정확히 추출하는 전문가입니다. 반드시 JSON 형식으로만 응답하세요."
+            },
+            {
+              "content": "=다음 네이버 블로그 모바일 HTML에서 정보를 추출해주세요:\n\n{{ $json.data }}\n\n다음 JSON 형식으로만 응답:\n{\n  \"title\": \"포스팅 제목\",\n  \"content\": \"본문 전체 텍스트\",\n  \"images\": [\n    {\n      \"url\": \"이미지 URL\",\n      \"context\": \"이미지 설명\"\n    }\n  ]\n}\n\n[이미지 URL 추출 규칙 - 매우 중요!]\n\n우선순위 순서:\n1. <img> 태그의 src 속성 (최우선!)\n2. <a> 태그의 data-linkdata 속성 내 src 값\n3. video 태그는 완전히 무시하세요\n\n필수 조건:\n- 확장자가 .jpg, .jpeg, .png, .webp인 URL만 추출\n- .gif, .GIF 확장자는 절대 추출하지 마세요\n- 썸네일(w80, w120 등)이 아닌 원본 크기 이미지 선호\n- URL에 ?type=w800 같은 파라미터는 유지\n\n예시:\n✅ https://mblogthumb-phinf.pstatic.net/xxx.jpg?type=w800\n✅ https://blogfiles.pstatic.net/xxx.png\n✅ https://mblogthumb-phinf.pstatic.net/xxx.JPG\n❌ https://mblogthumb-phinf.pstatic.net/xxx.GIF (GIF는 제외!)\n❌ https://mblogthumb-phinf.pstatic.net/xxx.gif (gif도 제외!)\n\n[이미지 context 추출]\n각 이미지마다:\n1. 이미지 주변 텍스트 (앞뒤 20자)\n2. 이미지가 포함된 문단의 주제\n3. 전체 글 맥락 기반 설명\n\n필수:\n- context는 절대 빈 문자열이면 안 됩니다\n- 모든 URL은 완전한 형태여야 합니다\n- 반드시 JPG, PNG, WEBP 형식만 추출하세요"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "textFormat": {
+            "textOptions": {
+              "type": "json_object"
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        1200,
+        48
+      ],
+      "id": "c525bdc4-f869-4e25-88ea-a571279165cc",
+      "name": "텍스트 이미지 추출",
+      "credentials": {
+        "openAiApi": {
+          "id": "SdxUM4fZSebxlpJ3",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const gptOutput = $input.first().json;\n\n// OpenAI 응답 구조 파악\nlet extracted;\n\n// 방법 1: output[0].content[0].text\nif (gptOutput.output && gptOutput.output[0] && gptOutput.output[0].content) {\n  const textContent = gptOutput.output[0].content[0].text;\n  if (typeof textContent === 'string') {\n    extracted = JSON.parse(textContent);\n  } else {\n    extracted = textContent;\n  }\n}\n// 방법 2: message.content\nelse if (gptOutput.message && gptOutput.message.content) {\n  extracted = JSON.parse(gptOutput.message.content);\n}\n// 방법 3: 직접 content\nelse if (gptOutput.content) {\n  extracted = gptOutput.content;\n}\n// 방법 4: 이미 파싱된 경우\nelse {\n  extracted = gptOutput;\n}\n\n// ✅ 이미지 URL 변환 추가!\nlet images = extracted.images || [];\nif (Array.isArray(images)) {\n  images = images.map(img => {\n    // {url, context} 형태인 경우\n    if (typeof img === 'object' && img.url) {\n      return {\n        url: img.url\n          .replace('mblogthumb-phinf.pstatic.net', 'blogfiles.pstatic.net')\n          .replace(/\\?type=.*$/, ''),\n        context: img.context\n      };\n    }\n    // 단순 문자열인 경우\n    else if (typeof img === 'string') {\n      return img\n        .replace('mblogthumb-phinf.pstatic.net', 'blogfiles.pstatic.net')\n        .replace(/\\?type=.*$/, '');\n    }\n    return img;\n  });\n}\n\nconsole.log('✅ 이미지 개수:', images.length);\nconsole.log('✅ 첫 번째 이미지:', images[0]);\n\nreturn [{\n  json: {\n    keyword: $('모바일 URL 변경').first().json.keyword,\n    mobile_url: $('모바일 URL 변경').first().json.mobile_url,\n    title: extracted.title || '제목 없음',\n    content: extracted.content || '',\n    images: images,\n    image_count: images.length\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1536,
+        48
+      ],
+      "id": "cad4cf73-4434-4e80-83d7-8a8dfc355c24",
+      "name": "데이터 정리"
+    },
+    {
+      "parameters": {
+        "content": "블로그 포스팅 정보 추출\n",
+        "height": 240,
+        "width": 1952,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        0,
+        -16
+      ],
+      "typeVersion": 1,
+      "id": "864e3e8b-4111-4b09-8e52-4e509f1ffbb0",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "블로그 스크립트 생성 및 오디오",
+        "height": 320,
+        "width": 2160
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        0,
+        224
+      ],
+      "typeVersion": 1,
+      "id": "fd160b4b-573b-400b-abff-3ba130dcc2f0",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "이미지 생성",
+        "height": 224,
+        "width": 2160,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        0,
+        544
+      ],
+      "typeVersion": 1,
+      "id": "59628488-1e00-4332-be69-3967ef8ae459",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "영상 생성",
+        "height": 224,
+        "width": 2160,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        0,
+        768
+      ],
+      "typeVersion": 1,
+      "id": "bbc817cd-4af6-4220-9228-6cf821d453b8",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "오디오+영상 합치기",
+        "height": 320,
+        "width": 2160,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        0,
+        944
+      ],
+      "typeVersion": 1,
+      "id": "51970a42-817f-49f3-804d-9db0b9a63a66",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 2
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        320,
+        48
+      ],
+      "id": "d58ed81b-caa6-4d25-b02c-39a7714b9b92",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "14yVuHGNfqKSZijmec4WhPN6hweJfo7OgJRZNF7Y7f90",
+          "mode": "list",
+          "cachedResultName": "블로그 클립 생성 사본",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/14yVuHGNfqKSZijmec4WhPN6hweJfo7OgJRZNF7Y7f90/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Content",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/14yVuHGNfqKSZijmec4WhPN6hweJfo7OgJRZNF7Y7f90/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Status",
+              "lookupValue": "기획"
+            }
+          ]
+        },
+        "options": {
+          "returnFirstMatch": true
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        528,
+        48
+      ],
+      "id": "cba5954b-77e4-4fd4-b92c-b92d992cbf60",
+      "name": "데이터 가져오기",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "OMBTo8r9g8jjmbUh",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "14yVuHGNfqKSZijmec4WhPN6hweJfo7OgJRZNF7Y7f90",
+          "mode": "list",
+          "cachedResultName": "블로그 클립 생성 사본",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/14yVuHGNfqKSZijmec4WhPN6hweJfo7OgJRZNF7Y7f90/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Content",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/14yVuHGNfqKSZijmec4WhPN6hweJfo7OgJRZNF7Y7f90/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ID": "={{ $('데이터 가져오기').item.json.ID }}",
+            "Status": "제작 중",
+            "title": "={{ $json.output[0].content[0].text.title }}",
+            "description": "={{ $json.output[0].content[0].text.description }}",
+            "script": "={{ $json.output[0].content[0].text.script }}",
+            "tags": "={{ $json.output[0].content[0].text.tags }}",
+            "url": "={{ $('데이터 가져오기').item.json.url }}"
+          },
+          "matchingColumns": [
+            "ID"
+          ],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "url",
+              "displayName": "url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Voice",
+              "displayName": "Voice",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Voice_ID",
+              "displayName": "Voice_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "title",
+              "displayName": "title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "description",
+              "displayName": "description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "script",
+              "displayName": "script",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tags",
+              "displayName": "tags",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "video_url",
+              "displayName": "video_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "video",
+              "displayName": "video",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        608,
+        288
+      ],
+      "id": "8a6a1d97-b778-4ee7-a627-8980c4101839",
+      "name": "업데이트 데이터",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "OMBTo8r9g8jjmbUh",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "14yVuHGNfqKSZijmec4WhPN6hweJfo7OgJRZNF7Y7f90",
+          "mode": "list",
+          "cachedResultName": "블로그 클립 생성 사본",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/14yVuHGNfqKSZijmec4WhPN6hweJfo7OgJRZNF7Y7f90/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Content",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/14yVuHGNfqKSZijmec4WhPN6hweJfo7OgJRZNF7Y7f90/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "video_url": "={{ $json.video.url }}",
+            "url": "=",
+            "ID": "={{ $('데이터 가져오기').item.json.ID }}",
+            "Status": "완성"
+          },
+          "matchingColumns": [
+            "ID"
+          ],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "url",
+              "displayName": "url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Voice",
+              "displayName": "Voice",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Voice_ID",
+              "displayName": "Voice_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "title",
+              "displayName": "title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "description",
+              "displayName": "description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "script",
+              "displayName": "script",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tags",
+              "displayName": "tags",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "video_url",
+              "displayName": "video_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "video",
+              "displayName": "video",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1760,
+        1040
+      ],
+      "id": "2d352b3d-7850-42af-a76b-8f3c943950ea",
+      "name": "영상 확인",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "OMBTo8r9g8jjmbUh",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.content && $json.content.parts && $json.content.parts.length > 0 }}",
+                    "rightValue": "true",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "6198fa72-56e1-40b5-8cfe-437f99e58e9e"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "성공"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "17c132d0-6142-4a07-b132-f28027949bec",
+                    "leftValue": "={{ $json.error || !$json.content }}",
+                    "rightValue": "true",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "재시도"
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1616,
+        288
+      ],
+      "id": "f09d81f3-9ca2-4284-95c2-a5d16abcfb4c",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "amount": 3
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1856,
+        368
+      ],
+      "id": "af2c033f-1b0c-4a14-b9d4-5d4dfe92e262",
+      "name": "Wait5",
+      "webhookId": "ba8b8047-9042-4fe9-a750-cc3451a7d29c"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "블로그 HTML 가져오기": {
+      "main": [
+        [
+          {
+            "node": "텍스트 이미지 추출",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "모바일 URL 변경": {
+      "main": [
+        [
+          {
+            "node": "블로그 HTML 가져오기",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "스크립트": {
+      "main": [
+        [
+          {
+            "node": "업데이트 데이터",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "make 오디오": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "체크 오디오",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "체크 오디오": {
+      "main": [
+        [
+          {
+            "node": "Analyze audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze audio": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "srt 생성": {
+      "main": [
+        [
+          {
+            "node": "이미지 프롬프트",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "이미지 프롬프트": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "이미지 생성",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait1": {
+      "main": [
+        [
+          {
+            "node": "체크 이미지",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "이미지 생성": {
+      "main": [
+        [
+          {
+            "node": "Wait1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "체크 이미지": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "영상 생성",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "영상 생성": {
+      "main": [
+        [
+          {
+            "node": "Wait2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait2": {
+      "main": [
+        [
+          {
+            "node": "체크 영상",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "체크 영상": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "비디오 합치기",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "비디오 합치기": {
+      "main": [
+        [
+          {
+            "node": "Wait3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "체크 영상1": {
+      "main": [
+        [
+          {
+            "node": "영상 오디오 합침",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "영상 오디오 합침": {
+      "main": [
+        [
+          {
+            "node": "Wait4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait4": {
+      "main": [
+        [
+          {
+            "node": "체크 영상 오디오",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "체크 영상 오디오": {
+      "main": [
+        [
+          {
+            "node": "영상 다운로드",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait3": {
+      "main": [
+        [
+          {
+            "node": "체크 영상1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "텍스트 이미지 추출": {
+      "main": [
+        [
+          {
+            "node": "데이터 정리",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "데이터 정리": {
+      "main": [
+        [
+          {
+            "node": "스크립트",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "데이터 가져오기",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "영상 다운로드": {
+      "main": [
+        [
+          {
+            "node": "영상 확인",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "데이터 가져오기": {
+      "main": [
+        [
+          {
+            "node": "모바일 URL 변경",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "업데이트 데이터": {
+      "main": [
+        [
+          {
+            "node": "make 오디오",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "srt 생성",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait5": {
+      "main": [
+        [
+          {
+            "node": "Analyze audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "7d6b2c40-ec3f-460c-a578-898638206683",
+  "meta": {
+    "instanceId": "670fa1df4fe08cf0af4163b69a636b4ad57968517cb943a6d58fe3ba458e8cc2"
+  },
+  "id": "4VTPTnExQXnahBal",
+  "tags": [
+    {
+      "updatedAt": "2025-12-28T13:07:12.261Z",
+      "createdAt": "2025-12-28T13:07:12.261Z",
+      "id": "keULltXBHaAgNSm3",
+      "name": "ai"
+    }
+  ]
+}
