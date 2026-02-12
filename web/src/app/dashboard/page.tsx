@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { signOut, useSession } from 'next-auth/react';
+import Link from 'next/link';
 import { db } from '@/lib/firebase';
-import { collection, query, where, orderBy, onSnapshot, doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 
 type JobStatus = 'pending' | 'processing' | 'complete' | 'error';
 
@@ -25,6 +26,7 @@ export default function DashboardPage() {
     const [submitting, setSubmitting] = useState(false);
     const [jobs, setJobs] = useState<Job[]>([]);
     const [activeJob, setActiveJob] = useState<Job | null>(null);
+    const [hasApiKey, setHasApiKey] = useState<boolean | null>(null);
 
     // Firestore에서 사용자의 Job 목록 실시간 구독
     useEffect(() => {
@@ -67,6 +69,17 @@ export default function DashboardPage() {
         return () => unsubscribe();
     }, [session?.user?.email]);
 
+    // OpenAI API 키 확인
+    useEffect(() => {
+        if (!session?.user?.email) return;
+        fetch('/api/settings', {
+            headers: { 'x-user-email': session.user.email },
+        })
+            .then(res => res.json())
+            .then(data => setHasApiKey(data.hasKey))
+            .catch(() => setHasApiKey(false));
+    }, [session?.user?.email]);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!url.includes('blog.naver.com')) {
@@ -78,11 +91,12 @@ export default function DashboardPage() {
         setSubmitting(true);
 
         try {
-            // 1. API 호출하여 jobId 받기
+            // API 호출하여 jobId 받기 (서버에서 Firestore 저장 처리)
             const response = await fetch('/api/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    blogUrl: url,
                     url,
                     userId: session?.user?.id,
                     userEmail: session?.user?.email,
@@ -92,20 +106,7 @@ export default function DashboardPage() {
             const result = await response.json();
 
             if (result.success && result.jobId) {
-                // 2. 클라이언트에서 Firestore에 Job 저장
-                await setDoc(doc(db, 'jobs', result.jobId), {
-                    id: result.jobId,
-                    userId: session?.user?.id || 'anonymous',
-                    userEmail: session?.user?.email || '',
-                    blogUrl: url,
-                    status: 'pending',
-                    progress: 0,
-                    progressMessage: '대기 중...',
-                    videoUrl: null,
-                    createdAt: serverTimestamp(),
-                    updatedAt: serverTimestamp(),
-                });
-
+                // 서버에서 이미 Firestore에 저장했으므로 URL만 초기화
                 setUrl('');
             } else {
                 setError(result.error || '요청 중 오류가 발생했습니다.');
@@ -160,6 +161,12 @@ export default function DashboardPage() {
                     </div>
                     <div className="flex items-center gap-4">
                         <span className="text-gray-400 text-sm">{session?.user?.email}</span>
+                        <Link
+                            href="/settings"
+                            className="glass-card py-2 px-4 text-sm hover:border-cyan-400/50 transition-colors"
+                        >
+                            ⚙️ 설정
+                        </Link>
                         <button
                             onClick={() => signOut({ callbackUrl: '/' })}
                             className="glass-card py-2 px-4 text-sm hover:border-red-400/50 transition-colors cursor-pointer"
@@ -172,6 +179,19 @@ export default function DashboardPage() {
                 {/* Main Content */}
                 <div className="flex-1 px-6 py-8">
                     <div className="max-w-4xl mx-auto">
+
+                        {/* API Key Missing Banner */}
+                        {hasApiKey === false && (
+                            <Link href="/settings" className="block mb-6 p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl hover:bg-amber-500/15 transition-colors">
+                                <div className="flex items-center gap-3">
+                                    <span className="text-2xl">🔑</span>
+                                    <div>
+                                        <p className="text-amber-400 font-semibold text-sm">OpenAI API 키를 등록해주세요</p>
+                                        <p className="text-amber-400/60 text-xs">영상 생성에 필요한 AI 키를 설정 페이지에서 등록할 수 있습니다 →</p>
+                                    </div>
+                                </div>
+                            </Link>
+                        )}
 
                         {/* New Job Form */}
                         <div className="glass-card mb-8">
@@ -240,6 +260,14 @@ export default function DashboardPage() {
                                             </div>
                                             <div className="flex items-center gap-4">
                                                 {getStatusBadge(job.status)}
+                                                {job.status === 'complete' && (
+                                                    <a
+                                                        href={`/preview?jobId=${job.id}`}
+                                                        className="py-2 px-4 text-sm border border-cyan-400/30 rounded-lg text-cyan-400 hover:bg-cyan-400/10 transition-colors"
+                                                    >
+                                                        미리보기
+                                                    </a>
+                                                )}
                                                 {job.status === 'complete' && job.videoUrl && (
                                                     <a
                                                         href={job.videoUrl}
@@ -264,7 +292,7 @@ export default function DashboardPage() {
 
                 {/* Footer */}
                 <footer className="p-6 text-center text-gray-600 text-sm">
-                    © 2026 Blog2Clips. AI로 블로그를 클립으로.
+                    © 2026 Blog2Clips. AI로 블로그를 숏폼으로.
                 </footer>
             </div>
         </main>
