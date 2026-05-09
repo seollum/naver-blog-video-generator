@@ -1,0 +1,167 @@
+//@version=6
+// =====================================================================
+// Volume S/R Diamond Signals (v4)
+// 기반:
+//   - ChartPrime "Support and Resistance (High Volume Boxes)" 로직
+//   - Alex Gonzalez 매매법 (영상 iG_Bh9D9-64) — 플립 리테스트 강조
+// 핵심:
+//   1. Delta Volume — 방향성 거래량 (매수/매도 우세) 기반 박스 형성
+//   2. crossover/crossunder — cross 이벤트로 거부/돌파 검출
+//   3. 플립 후 리테스트 다이아몬드 (영상의 핵심)
+//   4. 돌파된 박스는 점선 유지 (retest 신호 잡기 위함)
+// =====================================================================
+indicator("Volume S/R Diamond Signals", shorttitle="V-S/R Diamond",
+     overlay=true, max_boxes_count=50)
+
+// === Inputs ===
+g_struct = "Structure"
+lookbackPeriod = input.int(20, "Pivot Lookback", minval=1, group=g_struct)
+vol_len        = input.int(2,  "Delta Volume Filter Length", group=g_struct,
+     tooltip="높일수록 더 강한 방향성 거래량에서만 박스 생성")
+box_width      = input.float(1.0, "Box Width × ATR(200)", minval=0.1, step=0.1, group=g_struct)
+
+g_signal = "Diamond Signals"
+showHolds      = input.bool(true, "Show Rejection Diamonds (지지/저항 거부)", group=g_signal)
+showFlipRetest = input.bool(true, "Show Flip Retest Diamonds (플립 리테스트)", group=g_signal,
+     tooltip="저항 돌파 후 새 지지에서 거부 → 롱 / 지지 이탈 후 새 저항에서 거부 → 숏")
+
+g_view = "Display"
+showBreakLabels= input.bool(false, "Show BREAK Labels", group=g_view)
+
+// === Delta Volume (ChartPrime) ===
+upAndDownVolume() =>
+    var bool isBuy = true
+    if close > open
+        isBuy := true
+    else if close < open
+        isBuy := false
+    isBuy ? volume : -volume
+
+deltaVol = upAndDownVolume()
+volHi = ta.highest(deltaVol / 2.5, vol_len)
+volLo = ta.lowest(deltaVol / 2.5, vol_len)
+
+// === Pivot (close-based, less noisy) ===
+ph = ta.pivothigh(close, lookbackPeriod, lookbackPeriod)
+pl = ta.pivotlow(close,  lookbackPeriod, lookbackPeriod)
+
+// === ATR-based box width ===
+atrVal = ta.atr(200)
+withd  = atrVal * box_width
+
+// === Single active S/R variables (ChartPrime style) ===
+var float supportLevel      = na
+var float supportLevel_1    = na
+var float resistanceLevel   = na
+var float resistanceLevel_1 = na
+var box   sup = na
+var box   res = na
+var color sup_color = na
+var color res_color = na
+
+// === Find support: pivot low + strong BUY delta volume ===
+if not na(pl) and deltaVol > volHi
+    supportLevel   := pl
+    supportLevel_1 := supportLevel - withd
+    sup_color := color.from_gradient(deltaVol, 0, ta.highest(deltaVol, 25),
+         color(na), color.new(color.green, 30))
+    sup := box.new(bar_index - lookbackPeriod, supportLevel, bar_index, supportLevel_1,
+         border_color = color.green,
+         border_width = 1,
+         bgcolor      = sup_color)
+
+// === Find resistance: pivot high + strong SELL delta volume ===
+if not na(ph) and deltaVol < volLo
+    resistanceLevel   := ph
+    resistanceLevel_1 := resistanceLevel + withd
+    res_color := color.from_gradient(deltaVol, ta.lowest(deltaVol, 25), 0,
+         color.new(color.red, 30), color(na))
+    res := box.new(bar_index - lookbackPeriod, resistanceLevel, bar_index, resistanceLevel_1,
+         border_color = color.red,
+         border_width = 1,
+         bgcolor      = res_color)
+
+// === Auto-extend boxes to current bar ===
+if not na(sup)
+    box.set_right(sup, bar_index + 1)
+if not na(res)
+    box.set_right(res, bar_index + 1)
+
+// === Hold / Break detection ===
+brekout_res = ta.crossover(low,  resistanceLevel_1)   // 저항 위쪽으로 돌파
+res_holds   = ta.crossunder(high, resistanceLevel)    // 저항 거부 (윅 침입 후 복귀)
+sup_holds   = ta.crossover(low,  supportLevel)        // 지지 거부 (윅 침입 후 복귀)
+brekout_sup = ta.crossunder(high, supportLevel_1)     // 지지 아래로 이탈
+
+// === Box style update on break/hold ===
+if brekout_sup and not na(sup)
+    box.set_bgcolor(sup, color.new(color.red, 80))
+    box.set_border_color(sup, color.red)
+    box.set_border_style(sup, line.style_dashed)
+
+if sup_holds and not na(sup)
+    box.set_bgcolor(sup, sup_color)
+    box.set_border_color(sup, color.green)
+    box.set_border_style(sup, line.style_solid)
+
+if brekout_res and not na(res)
+    box.set_bgcolor(res, color.new(color.green, 80))
+    box.set_border_color(res, color.green)
+    box.set_border_style(res, line.style_dashed)
+
+if res_holds and not na(res)
+    box.set_bgcolor(res, res_color)
+    box.set_border_color(res, color.red)
+    box.set_border_style(res, line.style_solid)
+
+// === Flip state tracking ===
+var bool res_is_sup = false  // 돌파된 저항이 지지로 전환됨
+var bool sup_is_res = false  // 이탈된 지지가 저항으로 전환됨
+
+if brekout_res
+    res_is_sup := true
+else if res_holds
+    res_is_sup := false
+
+if brekout_sup
+    sup_is_res := true
+else if sup_holds
+    sup_is_res := false
+
+// === Diamond signals ===
+// 일반 거부 다이아몬드
+plotchar(showHolds and res_holds, "Resistance Hold (Short)", "◆",
+     color=#e92929, size=size.tiny, location=location.abovebar, offset=-1)
+plotchar(showHolds and sup_holds, "Support Hold (Long)", "◆",
+     color=#20ca26, size=size.tiny, location=location.belowbar, offset=-1)
+
+// 플립 리테스트 다이아몬드 (영상 핵심)
+plotchar(showFlipRetest and brekout_res and res_is_sup[1], "Flip Long (broken-res-as-sup)", "◆",
+     color=#20ca26, size=size.tiny, location=location.belowbar, offset=-1)
+plotchar(showFlipRetest and brekout_sup and sup_is_res[1], "Flip Short (broken-sup-as-res)", "◆",
+     color=#e92929, size=size.tiny, location=location.abovebar, offset=-1)
+
+// === Break labels (옵션) ===
+if showBreakLabels and brekout_sup and not sup_is_res[1]
+    label.new(bar_index[1], supportLevel[1],
+         text="Break Sup", style=label.style_label_down,
+         color=#7e1e1e, textcolor=chart.fg_color, size=size.small)
+
+if showBreakLabels and brekout_res and not res_is_sup[1]
+    label.new(bar_index[1], resistanceLevel[1],
+         text="Break Res", style=label.style_label_up,
+         color=#2b6d2d, textcolor=chart.fg_color, size=size.small)
+
+// === Alerts ===
+alertcondition(sup_holds, "Long Diamond (Support Hold)",
+     "🟢 LONG — support held — {{ticker}} {{interval}} @ {{close}}")
+alertcondition(res_holds, "Short Diamond (Resistance Hold)",
+     "🔴 SHORT — resistance held — {{ticker}} {{interval}} @ {{close}}")
+alertcondition(brekout_res and res_is_sup[1], "Flip Long (Retest)",
+     "🟢 LONG — flip retest of broken resistance — {{ticker}} {{interval}} @ {{close}}")
+alertcondition(brekout_sup and sup_is_res[1], "Flip Short (Retest)",
+     "🔴 SHORT — flip retest of broken support — {{ticker}} {{interval}} @ {{close}}")
+alertcondition(brekout_res and not res_is_sup[1], "Resistance Break",
+     "▲ Resistance broken — {{ticker}} {{interval}} @ {{close}}")
+alertcondition(brekout_sup and not sup_is_res[1], "Support Break",
+     "▼ Support broken — {{ticker}} {{interval}} @ {{close}}")

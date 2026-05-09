@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__tradingview__tv_health_check",
+      "mcp__tradingview__tv_launch"
+    ]
+  }
+}
